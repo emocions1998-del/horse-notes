@@ -7,19 +7,21 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="馬の手帖">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="description" content="馬の手帖 ver.1。競馬の馬メモを検索・閲覧し、CSVを端末内に保存できます。">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'">
-  <title>馬の手帖 ver.1 — HORSE NOTES</title>
+  <meta name="description" content="馬の手帖 ver.2。Google Sheetsの読み取り連携とCSV取り込みで、馬メモを検索・閲覧できます。">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://accounts.google.com/gsi/client; style-src 'self' https://accounts.google.com/gsi/style; frame-src https://accounts.google.com/gsi/; connect-src 'self' https://sheets.googleapis.com https://accounts.google.com/gsi/ https://oauth2.googleapis.com; img-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'">
+  <title>馬の手帖 ver.2 — HORSE NOTES</title>
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="./icons/icon-192.png">
   <link rel="stylesheet" href="./style.css">
   <script defer src="./data.js"></script>
   <script defer src="./csv-import.js"></script>
+  <script defer src="./google-config.js"></script>
+  <script defer src="./google-sheets.js"></script>
   <script defer src="./app.js"></script>
 </head>
 <body>
-  <header class="topbar"><a class="brand" href="./" aria-label="馬の手帖 ホーム"><span class="brand-icon" aria-hidden="true">♞</span><span>馬の手帖<small>HORSE NOTES</small></span></a><span class="local-badge"><i></i> ver.1</span></header>
+  <header class="topbar"><a class="brand" href="./" aria-label="馬の手帖 ホーム"><span class="brand-icon" aria-hidden="true">♞</span><span>馬の手帖<small>HORSE NOTES</small></span></a><span class="local-badge"><i></i> ver.2</span></header>
   <main>
     <section class="intro"><p class="eyebrow">YOUR NEXT RACE STARTS HERE</p><h1>馬の記憶を、<br class="mobile-break">次の一走へ。</h1><p class="intro-copy">予想の理由も、レース後の気づきも。<br>一頭ずつ、振り返るための手帖。</p></section>
     <div class="sample-banner"><span aria-hidden="true">ⓘ</span><p><strong id="source-title">サンプルデータでお試し中</strong><span id="source-description">馬名・レース・見解はすべて架空です。</span></p><span id="source-tag" class="sample-tag">DEMO</span></div>
@@ -30,6 +32,21 @@
       <p>このブラウザー内に保存 · 外部送信なし</p>
     </section>
     <p id="import-status" class="import-status" role="status" aria-live="polite"></p>
+    <details class="google-settings" id="google-settings">
+      <summary>設定 · Googleスプレッドシート連携</summary>
+      <div class="google-settings-body">
+        <p>非公開の「馬メモ一覧」から、Googleアカウントの読み取り許可を使って取得します。</p>
+        <label for="google-client-id">OAuthクライアントID（公開用の識別子）</label>
+        <div class="google-config-row"><input id="google-client-id" type="text" autocomplete="off" spellcheck="false" placeholder="…apps.googleusercontent.com"><button id="google-settings-save" class="secondary-button" type="button">設定を保存</button></div>
+        <p class="google-hint">クライアントシークレットは入力しません。設定ファイルで指定済みなら、そのまま接続できます。</p>
+        <p id="google-connection">未接続</p>
+        <div class="google-actions"><button id="google-connect" class="secondary-button" type="button">接続</button><button id="google-update" class="secondary-button" type="button">最新データを取得</button><button id="google-disconnect" class="secondary-button" type="button">接続解除</button></div>
+        <p id="google-status" class="import-status" role="status" aria-live="polite"></p>
+        <button id="google-retry" class="text-button" type="button">認証の準備を再試行</button>
+        <p id="data-update-info" class="google-hint"></p>
+        <p class="google-hint">取得成功時は保存データ全体を置き換えます。CSVとの結合はしません。通信・認証に失敗した場合や接続解除後も、保存済みメモは利用できます。</p>
+      </div>
+    </details>
     <div class="workspace">
       <section class="horse-panel" aria-labelledby="search-title"><div class="section-heading"><h2 id="search-title">馬を探す</h2><span id="total-count" class="muted"></span></div>
         <label class="search-box"><span aria-hidden="true">⌕</span><input id="search" type="search" placeholder="馬名・よみがなで検索" aria-label="馬名・よみがなで検索" autocomplete="off"></label>
@@ -39,9 +56,9 @@
       </section>
       <section id="detail" class="detail" aria-label="選択した馬のメモ"></section>
     </div>
-    <footer><span>♞ 馬の手帖</span><span>ローカル閲覧専用 · データの外部送信なし</span><button id="help-button" class="text-button" type="button">使い方</button></footer>
+    <footer><span>♞ 馬の手帖</span><span>端末内に保存 · CSVの外部送信なし</span><button id="help-button" class="text-button" type="button">使い方</button></footer>
   </main>
-  <dialog id="help"><div class="dialog-heading"><h2>馬の手帖の使い方</h2><button id="close-help" class="close-button" aria-label="閉じる">×</button></div><ol><li>「CSVを取り込む」で、パソコンにあるCSVを選択します。標準の13列なら自動で取り込みます。</li><li>「表示データ」でサンプルと取り込んだデータを切り替えられます。</li><li>馬名を検索して選ぶと、次走チェックポイントと過去メモが表示されます。</li><li>「本人の見解」「チャッピーの見解」はそれぞれの欄で確認できます。</li><li>記録種別で絞り込み、「表示順」で時系列の向きを変えられます。</li></ol><p>「要確認」などの日付もそのまま保存します。日付を判定できないメモは、表示順にかかわらず末尾にCSVの順で並びます。同日時の記録もCSVの順です。</p><p>取り込むたびに、保存済みのCSVデータ全体を置き換えます。サンプルは残ります。元のCSVやGoogleスプレッドシートは変更しません。</p><p>CSVはこの端末のブラウザー内に保存され、外部に送信されません。同じURL・同じ利用環境で開き直してください。端末・ブラウザー・URLが違う場合はCSVを取り込み直します。サイトデータの削除等で消えることがあるため、元CSVを保管してください。</p><p>iPhoneではSafariの共有メニューから「ホーム画面に追加」できます。「ウェブアプリとして開く」があればオンにし、追加したアイコンから起動してCSVを取り込んでください。この版は閲覧専用で、端末間同期やGoogleへの自動接続は行いません。</p></dialog>
+  <dialog id="help"><div class="dialog-heading"><h2>馬の手帖の使い方</h2><button id="close-help" class="close-button" aria-label="閉じる">×</button></div><ol><li>「CSVを取り込む」で、パソコンにあるCSVを選択します。標準の13列なら自動で取り込みます。</li><li>「表示データ」でサンプルと取り込んだデータを切り替えられます。</li><li>馬名を検索して選ぶと、次走チェックポイントと過去メモが表示されます。</li><li>「本人の見解」「チャッピーの見解」はそれぞれの欄で確認できます。</li><li>記録種別で絞り込み、「表示順」で時系列の向きを変えられます。</li></ol><p>「要確認」などの日付もそのまま保存します。日付を判定できないメモは、表示順にかかわらず末尾にCSVの順で並びます。同日時の記録もCSVの順です。</p><p>取り込むたびに、保存済みのCSVデータ全体を置き換えます。サンプルは残ります。元のCSVやGoogleスプレッドシートは変更しません。</p><p>CSVはこの端末のブラウザー内に保存され、外部に送信されません。同じURL・同じ利用環境で開き直してください。端末・ブラウザー・URLが違う場合はCSVを取り込み直します。サイトデータの削除等で消えることがあるため、元CSVを保管してください。</p><p>iPhoneではSafariの共有メニューから「ホーム画面に追加」できます。「ウェブアプリとして開く」があればオンにし、追加したアイコンから起動してCSVを取り込んでください。Googleからの更新は設定エリアの「最新データを取得」で行います。CSVとの結合やスプレッドシートへの書き戻しは行いません。</p></dialog>
   <dialog id="mapping-dialog" aria-labelledby="mapping-title"><div class="dialog-heading"><h2 id="mapping-title">CSVの列を確認</h2><button id="cancel-mapping" class="close-button" aria-label="取り込みをキャンセル">×</button></div><p>列名が標準形式と異なります。「馬名」は必須です。ほかは空欄のままでも取り込めます。対応を選んでから保存してください。</p><p id="mapping-file"></p><div id="mapping-fields" class="mapping-fields"></div><p id="mapping-error" class="import-status error" role="alert"></p><button id="confirm-mapping" class="secondary-button" type="button">この対応で取り込む</button><p>この操作で保存済みのCSVデータ全体を置き換えます。選ばなかった列もメモの「記録の詳細」に残します。</p></dialog>
   <noscript>このアプリを使うにはブラウザーのJavaScriptを有効にしてください。</noscript>
 </body>

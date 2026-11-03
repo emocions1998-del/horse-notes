@@ -1,7 +1,8 @@
 (() => {
   'use strict';
   const CSV = window.HorseCSV;
-  const STORAGE_KEY = 'horse-notes-csv-v1';
+  const STORAGE_KEY = 'horse-notes-data-v2';
+  const LEGACY_STORAGE_KEY = 'horse-notes-csv-v1'; // 読み取りだけに使い、ver.1の保存内容は残す。
   const $ = selector => document.querySelector(selector);
   const search = $('#search'), list = $('#horse-list'), detail = $('#detail');
   const fileInput = $('#csv-file'), sourceSelect = $('#data-source');
@@ -9,6 +10,8 @@
   let horses = window.HORSES;
   let selectedId = horses[0].id, filter = 'all', order = 'new';
   let saved = null, imported = null, pending = null;
+  let googleSync = null;
+  let csvReading = false;
   const normalize = value => value.normalize('NFKC').toLowerCase().replace(/[\u30a1-\u30f6]/g, c => String.fromCharCode(c.charCodeAt(0) - 0x60)).replace(/\s/g, '');
   const escape = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const latest = horse => [...horse.notes].sort(CSV.compareNotes)[0];
@@ -22,6 +25,7 @@
     return 'other';
   };
   const initialFilter = horse => horse?.notes.some(n => filterKey(n) === 'after') ? 'after' : 'all';
+  const sourceLabel = () => saved?.sourceType === 'google-sheets' ? 'Google Sheetsから取得' : 'CSVから取り込み';
   function status(message, error = false) {
     $('#import-status').textContent = message;
     $('#import-status').classList.toggle('error', error);
@@ -41,14 +45,14 @@
     }
     if (hideList) { list.innerHTML = ''; return; }
     list.innerHTML = matches.length ? matches.map(h => {
-      const metadata = h.imported ? 'CSVから取り込み' : `${h.sex}${h.age}歳 · ${h.coat} · ${h.style}`;
+      const metadata = h.imported ? sourceLabel() : `${h.sex}${h.age}歳 · ${h.coat} · ${h.style}`;
       return `<button class="horse-card ${selectedId === h.id ? 'selected' : ''}" data-horse="${escape(h.id)}" aria-pressed="${selectedId === h.id}"><span class="horse-monogram" aria-hidden="true">${escape(h.name[0])}</span><span class="horse-info"><strong>${escape(h.name)}</strong><span>${escape(metadata)}</span><small>${h.notes.length}件のメモ <b>·</b> ${escape(dateLabel(latest(h)))}</small></span><span class="card-arrow" aria-hidden="true">›</span></button>`;
     }).join('') : '<div class="empty"><span aria-hidden="true">⌕</span><h3>馬が見つかりませんでした</h3><p>馬名の一部や、ひらがなでも<br>検索できます。</p><button id="reset-search" class="secondary-button">検索をクリア</button></div>';
   }
   function renderDetail() {
     const h = horses.find(h => h.id === selectedId);
     if (!h) { detail.innerHTML = ''; return; }
-    const meta = h.imported ? `${h.notes.length}件の記録 · CSVから取り込み` : `${h.sex}${h.age}歳 ／ ${h.coat} ／ ${h.style}`;
+    const meta = h.imported ? `${h.notes.length}件の記録 · ${sourceLabel()}` : `${h.sex}${h.age}歳 ／ ${h.coat} ／ ${h.style}`;
     const filters = new Map([['after','レース総括'],['before','予想段階'],['all','すべて']]);
     if (!filters.has(filter)) filter = 'all';
     detail.innerHTML = `<div class="horse-header"><div><p class="eyebrow">HORSE PROFILE</p><h2 id="horse-name" tabindex="-1">${escape(h.name)}</h2><p class="horse-meta">${escape(meta)}</p></div><span class="profile-mark" aria-hidden="true">♞</span></div>${h.imported ? '' : `<p class="horse-summary">${escape(h.summary)}</p>`}
@@ -76,7 +80,10 @@
     sourceSelect.querySelector('option[value="imported"]').disabled = !imported;
     $('#source-title').textContent = active ? '取り込んだ馬メモを表示中' : 'サンプルデータでお試し中';
     $('#source-description').textContent = active ? `${saved.fileName} · ${imported.horses.length}頭 / ${imported.count}件 · このブラウザーに保存済み` : '馬名・レース・見解はすべて架空です。';
-    $('#source-tag').textContent = active ? 'LOCAL' : 'DEMO';
+    $('#source-tag').textContent = active ? (saved.sourceType === 'google-sheets' ? 'SHEETS' : 'CSV') : 'DEMO';
+    const updatedAt = saved?.fetchedAt || saved?.importedAt;
+    const updatedLabel = updatedAt && !Number.isNaN(Date.parse(updatedAt)) ? new Date(updatedAt).toLocaleString('ja-JP') : '日時不明';
+    $('#data-update-info').textContent = saved ? `保存データの取得元：${sourceLabel()} · 最終更新：${updatedLabel} · ${imported.count}件` : '保存データはまだありません。現在はサンプルを表示しています。';
     horses = active ? imported.horses : window.HORSES;
     selectedId = horses[0]?.id; filter = initialFilter(horses[0]); search.value = '';
     renderList(); renderDetail();
@@ -87,7 +94,7 @@
   }
   function commitImport(mapping) {
     const result = CSV.build(pending.table,mapping);
-    const candidate = {version:1, csvText:pending.csvText, mapping, fileName:pending.fileName, importedAt:new Date().toISOString(), active:'imported'};
+    const candidate = {version:1, csvText:pending.csvText, mapping, fileName:pending.fileName, importedAt:new Date().toISOString(), sourceType:'csv', active:'imported'};
     persist(candidate); // 保存が成功するまでは、表示や以前のデータを変更しない。
     saved = candidate; imported = result; pending = null;
     renderSource();
@@ -103,6 +110,8 @@
   fileInput.addEventListener('change', async () => {
     const file = fileInput.files[0];
     if (!file) return;
+    googleSync?.cancelPending(); // 後から到着したGoogleの応答でCSVを上書きしない。
+    csvReading = true;
     $('#import-button').disabled = true;
     status('CSVを読み込んでいます…');
     try {
@@ -114,7 +123,7 @@
       if (CSV.fields.some(([key]) => mapping[key] < 0)) { showMapping(); status('列の対応を確認してください。まだ保存していません。'); }
       else commitImport(mapping);
     } catch (error) { status(`取り込めませんでした。${error.message}`,true); pending = null; }
-    finally { fileInput.value = ''; $('#import-button').disabled = false; }
+    finally { csvReading = false; fileInput.value = ''; $('#import-button').disabled = false; }
   });
   $('#confirm-mapping').addEventListener('click', () => {
     if (!pending) return;
@@ -126,6 +135,7 @@
   $('#cancel-mapping').addEventListener('click', () => $('#mapping-dialog').close());
   $('#mapping-dialog').addEventListener('close', () => { if (pending) { pending = null; status('取り込みをキャンセルしました。保存データは変更していません。'); } });
   sourceSelect.addEventListener('change', () => {
+    googleSync?.cancelPending();
     if (!saved || !imported) { sourceSelect.value = 'sample'; return; }
     try { const candidate = {...saved,active:sourceSelect.value}; persist(candidate); saved = candidate; renderSource(); status('表示データを切り替えました。取り込んだデータは保存されています。'); }
     catch (error) { sourceSelect.value = saved.active; status(error.message,true); }
@@ -153,11 +163,45 @@
   $('#help-button').addEventListener('click', () => $('#help').showModal());
   $('#close-help').addEventListener('click', () => $('#help').close());
   try {
-    const serialized = window.localStorage.getItem(STORAGE_KEY);
+    const serialized = window.localStorage.getItem(STORAGE_KEY) ?? window.localStorage.getItem(LEGACY_STORAGE_KEY);
     if (serialized) {
       const restored = CSV.restore(serialized); saved = restored.saved; imported = restored.result;
     }
   } catch { status('保存データを復元できませんでした。サンプルを表示します。保存データは削除していません。元のCSVから再取り込みしてください。',true); }
   renderSource();
+  if (window.HorseSheets) {
+    const configKey = 'horse-notes-google-client-id-v1';
+    const config = {...window.HORSE_SHEETS_CONFIG};
+    try {config.clientId = window.localStorage.getItem(configKey) || config.clientId || '';} catch {config.clientId = config.clientId || '';}
+    $('#google-client-id').value = config.clientId;
+    googleSync = window.HorseSheets.create({config,CSV,loadLibrary:window.HorseSheets.loadLibrary,
+      onState:state=>{
+        $('#google-status').textContent = state.message;
+        $('#google-status').classList.toggle('error',state.error);
+        $('#google-connection').textContent = state.connected ? '接続済み（認可は一時的）' : '未接続';
+        $('#google-connect').disabled = state.busy || !state.ready || !state.configured;
+        $('#google-update').disabled = state.busy || !state.ready || !state.configured;
+        $('#google-disconnect').disabled = !state.canDisconnect;
+        $('#google-retry').disabled = state.busy || !state.configured;
+        $('#google-settings-save').disabled = state.busy;
+        $('#google-client-id').disabled = state.busy;
+      },
+      onData:(candidate,result)=>{
+        persist(candidate);
+        saved=candidate;imported=result;renderSource();
+        status(`${result.horses.length}頭・${result.count}件をGoogle Sheetsから取得し、端末内に保存しました。CSVとは混在せず、保存データ全体を更新しました。`);
+      }
+    });
+    $('#google-settings-save').addEventListener('click',()=>{
+      const clientId=$('#google-client-id').value.trim();
+      if(!window.HorseSheets.validClientId(clientId)) {$('#google-status').textContent='末尾が .apps.googleusercontent.com のクライアントIDを入力してください。シークレットは入力しません。';$('#google-status').classList.toggle('error',true);return;}
+      try {window.localStorage.setItem(configKey,clientId);} catch {$('#google-status').textContent='クライアントIDの設定を保存できませんでした。ブラウザーの保存制限を確認してください。';return;}
+      googleSync.setClientId(clientId);
+    });
+    $('#google-connect').addEventListener('click',()=>googleSync.connect());
+    $('#google-update').addEventListener('click',()=>{if(pending || csvReading){$('#google-status').textContent='CSVの読み込み・列確認を完了またはキャンセルしてから取得してください。';return;}void googleSync.update();});
+    $('#google-disconnect').addEventListener('click',()=>googleSync.disconnect());
+    $('#google-retry').addEventListener('click',()=>void googleSync.retry());
+  }
   if ('serviceWorker' in navigator && window.location.protocol !== 'file:') navigator.serviceWorker.register('./sw.js').catch(() => {});
 })();

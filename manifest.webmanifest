@@ -1,9 +1,9 @@
 {
   "id": "./",
-  "name": "馬の手帖 ver.1 — 競馬メモ",
+  "name": "馬の手帖 ver.2 — 競馬メモ",
   "short_name": "馬の手帖",
   "lang": "ja",
-  "description": "馬名で探す、予想とレース後のメモ。実データはCSVから端末ごとに取り込んで保存します。",
+  "description": "馬名で探す、予想とレース後のメモ。CSV取り込みとGoogle Sheetsの読み取り連携に対応します。",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

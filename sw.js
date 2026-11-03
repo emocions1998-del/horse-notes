@@ -1,7 +1,7 @@
 // GitHub Pagesの別リポジトリー等のキャッシュに干渉しないよう、公開パスごとに分離する。
 const CACHE_PREFIX = `horse-notes:${self.registration.scope}:`;
-const CACHE = `${CACHE_PREFIX}ver1-1`;
-const ASSETS = ['./', './index.html', './style.css', './data.js', './csv-import.js', './app.js', './manifest.webmanifest', './icon.svg', './icons/icon-192.png', './icons/icon-512.png'];
+const CACHE = `${CACHE_PREFIX}ver2-1`;
+const ASSETS = ['./', './index.html', './style.css', './data.js', './csv-import.js', './google-config.js', './google-sheets.js', './app.js', './manifest.webmanifest', './icon.svg', './icons/icon-192.png', './icons/icon-512.png'];
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(ASSETS)));
 });
