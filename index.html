@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#101512">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="馬の手帖">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="description" content="馬の手帖 ver.1。競馬の馬メモを検索・閲覧し、CSVを端末内に保存できます。">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'">
+  <title>馬の手帖 ver.1 — HORSE NOTES</title>
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="./icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="./icons/icon-192.png">
+  <link rel="stylesheet" href="./style.css">
+  <script defer src="./data.js"></script>
+  <script defer src="./csv-import.js"></script>
+  <script defer src="./app.js"></script>
+</head>
+<body>
+  <header class="topbar"><a class="brand" href="./" aria-label="馬の手帖 ホーム"><span class="brand-icon" aria-hidden="true">♞</span><span>馬の手帖<small>HORSE NOTES</small></span></a><span class="local-badge"><i></i> ver.1</span></header>
+  <main>
+    <section class="intro"><p class="eyebrow">YOUR NEXT RACE STARTS HERE</p><h1>馬の記憶を、<br class="mobile-break">次の一走へ。</h1><p class="intro-copy">予想の理由も、レース後の気づきも。<br>一頭ずつ、振り返るための手帖。</p></section>
+    <div class="sample-banner"><span aria-hidden="true">ⓘ</span><p><strong id="source-title">サンプルデータでお試し中</strong><span id="source-description">馬名・レース・見解はすべて架空です。</span></p><span id="source-tag" class="sample-tag">DEMO</span></div>
+    <section class="data-toolbar" aria-label="データの取り込みと切り替え">
+      <label class="source-label">表示データ<select id="data-source" aria-label="表示データ"><option value="sample">サンプル</option><option value="imported" disabled>取り込んだデータ</option></select></label>
+      <button id="import-button" class="secondary-button" type="button">CSVを取り込む</button>
+      <input type="file" id="csv-file" accept=".csv,text/csv" hidden>
+      <p>このブラウザー内に保存 · 外部送信なし</p>
+    </section>
+    <p id="import-status" class="import-status" role="status" aria-live="polite"></p>
+    <div class="workspace">
+      <section class="horse-panel" aria-labelledby="search-title"><div class="section-heading"><h2 id="search-title">馬を探す</h2><span id="total-count" class="muted"></span></div>
+        <label class="search-box"><span aria-hidden="true">⌕</span><input id="search" type="search" placeholder="馬名・よみがなで検索" aria-label="馬名・よみがなで検索" autocomplete="off"></label>
+        <div class="list-caption"><span>登録馬</span><span id="result-count" role="status" aria-live="polite"></span></div>
+        <div id="horse-list" class="horse-list"></div>
+        <p class="panel-foot">名前を選ぶと、過去のメモを確認できます。</p>
+      </section>
+      <section id="detail" class="detail" aria-label="選択した馬のメモ"></section>
+    </div>
+    <footer><span>♞ 馬の手帖</span><span>ローカル閲覧専用 · データの外部送信なし</span><button id="help-button" class="text-button" type="button">使い方</button></footer>
+  </main>
+  <dialog id="help"><div class="dialog-heading"><h2>馬の手帖の使い方</h2><button id="close-help" class="close-button" aria-label="閉じる">×</button></div><ol><li>「CSVを取り込む」で、パソコンにあるCSVを選択します。標準の13列なら自動で取り込みます。</li><li>「表示データ」でサンプルと取り込んだデータを切り替えられます。</li><li>馬名を検索して選ぶと、次走チェックポイントと過去メモが表示されます。</li><li>「本人の見解」「チャッピーの見解」はそれぞれの欄で確認できます。</li><li>記録種別で絞り込み、「表示順」で時系列の向きを変えられます。</li></ol><p>「要確認」などの日付もそのまま保存します。日付を判定できないメモは、表示順にかかわらず末尾にCSVの順で並びます。同日時の記録もCSVの順です。</p><p>取り込むたびに、保存済みのCSVデータ全体を置き換えます。サンプルは残ります。元のCSVやGoogleスプレッドシートは変更しません。</p><p>CSVはこの端末のブラウザー内に保存され、外部に送信されません。同じURL・同じ利用環境で開き直してください。端末・ブラウザー・URLが違う場合はCSVを取り込み直します。サイトデータの削除等で消えることがあるため、元CSVを保管してください。</p><p>iPhoneではSafariの共有メニューから「ホーム画面に追加」できます。「ウェブアプリとして開く」があればオンにし、追加したアイコンから起動してCSVを取り込んでください。この版は閲覧専用で、端末間同期やGoogleへの自動接続は行いません。</p></dialog>
+  <dialog id="mapping-dialog" aria-labelledby="mapping-title"><div class="dialog-heading"><h2 id="mapping-title">CSVの列を確認</h2><button id="cancel-mapping" class="close-button" aria-label="取り込みをキャンセル">×</button></div><p>列名が標準形式と異なります。「馬名」は必須です。ほかは空欄のままでも取り込めます。対応を選んでから保存してください。</p><p id="mapping-file"></p><div id="mapping-fields" class="mapping-fields"></div><p id="mapping-error" class="import-status error" role="alert"></p><button id="confirm-mapping" class="secondary-button" type="button">この対応で取り込む</button><p>この操作で保存済みのCSVデータ全体を置き換えます。選ばなかった列もメモの「記録の詳細」に残します。</p></dialog>
+  <noscript>このアプリを使うにはブラウザーのJavaScriptを有効にしてください。</noscript>
+</body>
+</html>
