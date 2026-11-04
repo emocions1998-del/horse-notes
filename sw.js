@@ -1,8 +1,8 @@
 // GitHub Pagesの別リポジトリー等のキャッシュに干渉しないよう、公開パスごとに分離する。
 const CACHE_PREFIX = `horse-notes:${self.registration.scope}:`;
-const CACHE = `${CACHE_PREFIX}ver2-1-2-search`;
+const CACHE = `${CACHE_PREFIX}ver2-1-3-prefix`;
 // Pin HTML dependencies to this release so old unversioned HTTP/SW caches cannot mix UI versions.
-const ASSETS = ['./', './index.html', './style.css?v=2.1.2', './data.js?v=2.1.2', './csv-import.js?v=2.1.2', './google-config.js?v=2.1.2', './google-sheets.js?v=2.1.2', './app.js?v=2.1.2', './manifest.webmanifest?v=2.1.2', './icon.svg', './icons/icon-192.png', './icons/icon-512.png'];
+const ASSETS = ['./', './index.html', './style.css?v=2.1.3', './data.js?v=2.1.3', './csv-import.js?v=2.1.3', './google-config.js?v=2.1.3', './google-sheets.js?v=2.1.3', './app.js?v=2.1.3', './manifest.webmanifest?v=2.1.3', './icon.svg', './icons/icon-192.png', './icons/icon-512.png'];
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(ASSETS.map(path => new Request(path,{cache:'reload'})))));
 });

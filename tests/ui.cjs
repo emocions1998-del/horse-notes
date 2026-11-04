@@ -2,7 +2,7 @@ const {chromium}=require('playwright');
 const assert=require('node:assert/strict');
 const headers='馬名,記録日,レース,観察・レース内容,当時の評価・仮説,次走チェックポイント,次走注目,記録者,出典チャット,記録種別,備考,本人の見解,チャッピーの見解';
 const csv=headers+'\n検証用の架空馬,2026-11-04,架空レース,観察,仮説,確認,○,検証,検証,レース総括,備考,架空の本人見解,架空の補足';
-const url=process.env.BASE_URL || 'http://127.0.0.1:8767';
+const url=process.env.BASE_URL || 'http://127.0.0.1:8768';
 (async()=>{
  const browser=await chromium.launch({headless:true,executablePath:process.env.CHROMIUM_PATH || '/usr/bin/chromium',args:['--no-sandbox']});
  try {
@@ -64,12 +64,18 @@ const url=process.env.BASE_URL || 'http://127.0.0.1:8767';
   assert.deepEqual(errors,[]);
   // Simulate nonzero safe-area in the stylesheet; this does not emulate iOS system UI.
   const insetContext=await browser.newContext({viewport:{width:390,height:844},isMobile:true,deviceScaleFactor:2,serviceWorkers:'block'});
-  await insetContext.route('**/style.css?v=2.1.2',async r=>{const response=await r.fetch();await r.fulfill({response,body:(await response.text()).replaceAll('env(safe-area-inset-top,0px)','47px')});});
+  await insetContext.route('**/style.css?v=2.1.3',async r=>{const response=await r.fetch();await r.fulfill({response,body:(await response.text()).replaceAll('env(safe-area-inset-top,0px)','47px')});});
   const insetPage=await insetContext.newPage();await insetPage.goto(url);await insetPage.waitForSelector('#search');
   assert.equal((await insetPage.locator('.status-bar-space').boundingBox()).height,47);
   assert.equal(await insetPage.locator('.status-bar-space').evaluate(el=>getComputedStyle(el).backgroundColor),'rgb(0, 0, 0)');
-  assert((await insetPage.locator('.topbar').boundingBox()).y>=47);
-  await insetPage.locator('#menu-button').click();await insetPage.locator('#show-sample').click();await insetPage.locator('#close-menu').click();await insetPage.locator('#search').fill('ノ');
+  assert.equal((await insetPage.locator('.topbar').boundingBox()).y,47);
+  const toolbar=await insetPage.locator('.topbar').evaluate(el=>{
+   const s=getComputedStyle(el);return {radius:s.borderTopLeftRadius,otherRadius:s.borderTopRightRadius,top:s.paddingTop,bottom:s.paddingBottom,border:s.borderTopStyle};
+  });
+  assert.deepEqual(toolbar,{radius:'0px',otherRadius:'0px',top:'4px',bottom:'4px',border:'solid'});
+  const insetSpacing=await insetPage.locator('.status-bar-space').evaluate(el=>{const s=getComputedStyle(el);return [s.paddingTop,s.paddingBottom,s.marginTop,s.marginBottom]});
+  assert.deepEqual(insetSpacing,['0px','0px','0px','0px']);
+  await insetPage.locator('#menu-button').click();await insetPage.locator('#show-sample').click();await insetPage.locator('#close-menu').click();await insetPage.locator('#search').fill('ツ');
   if(process.env.UI_SCREENSHOT)await insetPage.screenshot({path:process.env.UI_SCREENSHOT});
   await insetPage.evaluate(()=>window.scrollTo(0,300));assert.equal(Math.round((await insetPage.locator('.app-header').boundingBox()).y),0);
   await insetContext.close();await context.close();
