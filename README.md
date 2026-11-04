@@ -1,4 +1,4 @@
-# 馬の手帖 ver.2 — HORSE NOTES
+# 馬の手帖 ver.2.1 — HORSE NOTES
 
 日本語の競馬メモ閲覧PWAです。静的HTML・CSS・JavaScriptだけで動作します。
 
@@ -47,3 +47,17 @@ PC版・iPhone版、別のブラウザー・ホーム画面アプリでは保存
 このフォルダーの内容をリポジトリーの最上位に置き、Settings → Pages → Deploy from a branch → main → /(root) を選びます。ビルドや依存パッケージのインストールは不要です。
 
 このリポジトリーに実データやCSVをアップロードしないでください。
+
+## ver.2.1 のUI
+
+ヘッダーの更新アイコンでGoogle Sheetsの取得、☰メニューでGoogle連携設定・CSV取り込み・表示データ切り替えを行います。取得中は回転表示と操作抑止、成功・失敗はヘッダー直下のメッセージで確認できます。未設定の場合は設定画面を開きます。
+
+iPhone向けに `viewport-fit=cover` と `env(safe-area-inset-*)` を使い、ステータスバー領域をヘッダー内の余白として確保します。保存キー・保存形式・PWAのIDと公開パスは従来どおりです。
+
+### UI回帰確認
+
+Playwright（Node.js）とChromiumが利用できる環境で、リポジトリをローカルHTTP配信してから `node tests/ui.cjs` を実行します。既定URLは `http://127.0.0.1:8765`、ブラウザーは `/usr/bin/chromium` です。`BASE_URL` と `CHROMIUM_PATH` で変更できます。アプリ本体への依存パッケージ追加は不要です。
+
+テストは隔離したブラウザー内で架空CSVとGoogle APIのモックだけを使います。320〜1280pxの表示、メニュー、検索・フィルター、CSV取り込み、v1/v2保存復元、オフライン閲覧、Sheets取得中・成功・403失敗時のデータ保持を確認します。
+
+iPhone実機ではホーム画面から起動し、縦横画面のsafe-area、Google認可画面からの復帰、更新後の再起動、オフライン閲覧を最終確認してください。

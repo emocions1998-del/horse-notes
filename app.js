@@ -12,6 +12,35 @@
   let saved = null, imported = null, pending = null;
   let googleSync = null;
   let csvReading = false;
+  let sheetsState = null, updateSucceeded = false, showSyncStatus = false;
+  const menu = $('#management-menu');
+  function openMenu(showGoogle = false) {
+    if (!menu.open) menu.showModal();
+    $('#menu-button').setAttribute('aria-expanded','true');
+    if (showGoogle) { $('#google-settings').open = true; $('#google-client-id').focus(); }
+  }
+  $('#menu-button').addEventListener('click',()=>openMenu());
+  $('#close-menu').addEventListener('click',()=>menu.close());
+  menu.addEventListener('close',()=>{
+    $('#menu-button').setAttribute('aria-expanded','false');
+    $('#menu-button').focus();
+  });
+  // Both update buttons use this synchronous entry point so iOS can open OAuth from the tap.
+  function requestSheetsUpdate() {
+    showSyncStatus = true; updateSucceeded = false;
+    if (pending || csvReading) {
+      $('#header-sync-status').textContent = 'CSVの読み込み・列確認を完了またはキャンセルしてから取得してください。';
+      $('#header-update').dataset.state = 'error';
+      return;
+    }
+    if (!googleSync || !sheetsState?.ready || !sheetsState?.configured) {
+      openMenu(true);
+      $('#header-sync-status').textContent = sheetsState?.message || 'Google連携の設定を確認してください。';
+      return;
+    }
+    void googleSync.update();
+  }
+  $('#header-update').addEventListener('click',requestSheetsUpdate);
   const normalize = value => value.normalize('NFKC').toLowerCase().replace(/[\u30a1-\u30f6]/g, c => String.fromCharCode(c.charCodeAt(0) - 0x60)).replace(/\s/g, '');
   const escape = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const latest = horse => [...horse.notes].sort(CSV.compareNotes)[0];
@@ -32,21 +61,16 @@
   }
   function renderList() {
     const query = normalize(search.value);
-    const hideList = mobileLayout.matches && !query;
     const matches = horses.filter(h => normalize(h.name).includes(query) || normalize(h.reading).includes(query));
     $('#total-count').textContent = `${horses.length}頭`;
-    $('#result-count').textContent = hideList ? '' : `${matches.length}頭`;
-    list.hidden = hideList;
-    $('.list-caption').hidden = hideList;
-    $('.panel-foot').textContent = hideList ? '馬名・よみがなを入力すると、検索結果を表示します。' : '名前を選ぶと、過去のメモを確認できます。';
+    $('#result-count').textContent = `${matches.length}頭`;
     detail.hidden = !matches.length;
     if (matches.length && !matches.some(h => h.id === selectedId)) {
       selectedId = matches[0].id; filter = initialFilter(matches[0]); renderDetail();
     }
-    if (hideList) { list.innerHTML = ''; return; }
     list.innerHTML = matches.length ? matches.map(h => {
       const metadata = h.imported ? sourceLabel() : `${h.sex}${h.age}歳 · ${h.coat} · ${h.style}`;
-      return `<button class="horse-card ${selectedId === h.id ? 'selected' : ''}" data-horse="${escape(h.id)}" aria-pressed="${selectedId === h.id}"><span class="horse-monogram" aria-hidden="true">${escape(h.name[0])}</span><span class="horse-info"><strong>${escape(h.name)}</strong><span>${escape(metadata)}</span><small>${h.notes.length}件のメモ <b>·</b> ${escape(dateLabel(latest(h)))}</small></span><span class="card-arrow" aria-hidden="true">›</span></button>`;
+      return `<button class="horse-card ${selectedId === h.id ? 'selected' : ''}" data-horse="${escape(h.id)}" aria-pressed="${selectedId === h.id}"><span class="horse-monogram" aria-hidden="true">♞</span><span class="horse-info"><span class="profile-eyebrow">HORSE PROFILE</span><strong>${escape(h.name)}</strong><span>${escape(metadata)}</span><small>${h.notes.length}件のメモ <b>·</b> ${escape(dateLabel(latest(h)))}</small></span><span class="card-arrow" aria-hidden="true">›</span></button>`;
     }).join('') : '<div class="empty"><span aria-hidden="true">⌕</span><h3>馬が見つかりませんでした</h3><p>馬名の一部や、ひらがなでも<br>検索できます。</p><button id="reset-search" class="secondary-button">検索をクリア</button></div>';
   }
   function renderDetail() {
@@ -176,6 +200,16 @@
     $('#google-client-id').value = config.clientId;
     googleSync = window.HorseSheets.create({config,CSV,loadLibrary:window.HorseSheets.loadLibrary,
       onState:state=>{
+        sheetsState = state;
+        const headerUpdate = $('#header-update');
+        headerUpdate.disabled = state.busy;
+        headerUpdate.setAttribute('aria-busy',String(state.busy));
+        headerUpdate.dataset.state = state.busy ? 'loading' : state.error ? 'error' : state.connected && updateSucceeded ? 'success' : 'idle';
+        headerUpdate.setAttribute('aria-label',state.busy ? 'Google Sheetsの更新処理中' : 'Google Sheetsの最新データを取得');
+        if (showSyncStatus || state.busy) {
+          $('#header-sync-status').textContent = state.message;
+          $('#header-sync-status').classList.toggle('error',state.error);
+        }
         $('#google-status').textContent = state.message;
         $('#google-status').classList.toggle('error',state.error);
         $('#google-connection').textContent = state.connected ? '接続済み（認可は一時的）' : '未接続';
@@ -188,7 +222,7 @@
       },
       onData:(candidate,result)=>{
         persist(candidate);
-        saved=candidate;imported=result;renderSource();
+        saved=candidate;imported=result;updateSucceeded=true;renderSource();
         status(`${result.horses.length}頭・${result.count}件をGoogle Sheetsから取得し、端末内に保存しました。CSVとは混在せず、保存データ全体を更新しました。`);
       }
     });
@@ -199,7 +233,7 @@
       googleSync.setClientId(clientId);
     });
     $('#google-connect').addEventListener('click',()=>googleSync.connect());
-    $('#google-update').addEventListener('click',()=>{if(pending || csvReading){$('#google-status').textContent='CSVの読み込み・列確認を完了またはキャンセルしてから取得してください。';return;}void googleSync.update();});
+    $('#google-update').addEventListener('click',requestSheetsUpdate);
     $('#google-disconnect').addEventListener('click',()=>googleSync.disconnect());
     $('#google-retry').addEventListener('click',()=>void googleSync.retry());
   }
