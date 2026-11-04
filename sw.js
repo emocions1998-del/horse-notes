@@ -1,9 +1,10 @@
 // GitHub Pagesの別リポジトリー等のキャッシュに干渉しないよう、公開パスごとに分離する。
 const CACHE_PREFIX = `horse-notes:${self.registration.scope}:`;
-const CACHE = `${CACHE_PREFIX}ver2-1-1-ui`;
-const ASSETS = ['./', './index.html', './style.css', './data.js', './csv-import.js', './google-config.js', './google-sheets.js', './app.js', './manifest.webmanifest', './icon.svg', './icons/icon-192.png', './icons/icon-512.png'];
+const CACHE = `${CACHE_PREFIX}ver2-1-2-search`;
+// Pin HTML dependencies to this release so old unversioned HTTP/SW caches cannot mix UI versions.
+const ASSETS = ['./', './index.html', './style.css?v=2.1.2', './data.js?v=2.1.2', './csv-import.js?v=2.1.2', './google-config.js?v=2.1.2', './google-sheets.js?v=2.1.2', './app.js?v=2.1.2', './manifest.webmanifest?v=2.1.2', './icon.svg', './icons/icon-192.png', './icons/icon-512.png'];
 self.addEventListener('install', event => {
-  event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(ASSETS)));
+  event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(ASSETS.map(path => new Request(path,{cache:'reload'})))));
 });
 self.addEventListener('activate', event => {
   event.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(key => key.startsWith(CACHE_PREFIX) && key !== CACHE).map(key => caches.delete(key)))).then(() => self.clients.claim()));

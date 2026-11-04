@@ -11,6 +11,7 @@
   let selectedId = null, filter = 'all', order = 'new';
   let saved = null, imported = null, pending = null;
   let sampleSelected = false;
+  let renderedSearchValue = null;
   let googleSync = null;
   let csvReading = false;
   let sheetsState = null, updateSucceeded = false, showSyncStatus = false;
@@ -61,6 +62,7 @@
     $('#import-status').classList.toggle('error', error);
   }
   function renderList() {
+    renderedSearchValue = search.value;
     const query = normalize(search.value);
     const canSearch = saved?.active === 'imported' || sampleSelected;
     const matches = query && canSearch ? horses.filter(h => normalize(h.name).includes(query) || normalize(h.reading || '').includes(query)) : [];
@@ -180,7 +182,15 @@
       detail.scrollIntoView({behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth',block:'start'});
     }
   });
-  search.addEventListener('input',()=>{selectedId=null;renderList();});
+  function refreshSearch() {
+    // Duplicate IME/blur events must not rebuild a card between touch-down and click.
+    if (search.value === renderedSearchValue) return;
+    selectedId=null; renderList();
+  }
+  // iOS may finalize a conversion or clear a search field through different events.
+  for (const event of ['input','compositionend','search','change']) {
+    search.addEventListener(event,refreshSearch);
+  }
   mobileLayout.addEventListener('change',renderList);
   detail.addEventListener('click', event => {
     const button = event.target.closest('[data-filter]');
@@ -249,5 +259,5 @@
   measureHeader();
   if ('ResizeObserver' in window) new ResizeObserver(measureHeader).observe(appHeader);
   window.addEventListener('resize',measureHeader);
-  if ('serviceWorker' in navigator && window.location.protocol !== 'file:') navigator.serviceWorker.register('./sw.js').catch(() => {});
+  if ('serviceWorker' in navigator && window.location.protocol !== 'file:') navigator.serviceWorker.register('./sw.js',{updateViaCache:'none'}).catch(() => {});
 })();
