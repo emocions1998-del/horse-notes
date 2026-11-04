@@ -65,7 +65,7 @@
     renderedSearchValue = search.value;
     const query = normalize(search.value);
     const canSearch = saved?.active === 'imported' || sampleSelected;
-    const matches = query && canSearch ? horses.filter(h => normalize(h.name).includes(query) || normalize(h.reading || '').includes(query)) : [];
+    const matches = query && canSearch ? horses.filter(h => normalize(h.name).startsWith(query) || normalize(h.reading || '').startsWith(query)) : [];
     list.hidden = !query;
     $('#search-status').textContent = query ? `${matches.length}件の検索結果` : '';
     detail.hidden = !query || !matches.some(h => h.id === selectedId);
