@@ -349,3 +349,33 @@ body { min-height:100vh; min-height:100dvh; }
 /* The search container owns the focus indicator; avoid a second rectangular ring inside it. */
 .search-box:focus-within { box-shadow:0 0 0 1px var(--accent); }
 .search-box input:focus-visible { outline:0; }
+
+/* ver.2.1.4: preserve the normal page; only a focused mobile search uses this viewport. */
+.search-controls { display:flex; align-items:center; gap:10px; }
+.search-controls .search-box { flex:1; min-width:0; }
+#close-search[hidden] { display:none; }
+body.search-mode { position:fixed; top:var(--search-page-top,0px); left:0; width:100%; overflow:hidden; }
+.search-mode .app-header {
+  position:fixed; top:var(--search-viewport-top,0px);
+  left:var(--search-viewport-left,0px); width:var(--search-viewport-width,100%);
+}
+.search-mode .intro, .search-mode footer, .search-mode #detail, .search-mode .header-sync-status { display:none; }
+.search-mode .horse-panel {
+  position:fixed; z-index:19;
+  top:calc(var(--search-viewport-top,0px) + var(--header-height,100px));
+  left:var(--search-viewport-left,0px); width:var(--search-viewport-width,100%);
+  height:max(0px,calc(var(--search-viewport-height,100dvh) - var(--header-height,100px)));
+  display:flex; flex-direction:column; min-height:0;
+  padding:10px max(16px,env(safe-area-inset-right,0px)) max(8px,env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));
+  background:var(--bg);
+}
+.search-mode .search-controls { flex-shrink:0; }
+.search-mode #close-search { flex-shrink:0; }
+.search-mode .horse-list {
+  flex:1; min-height:0; margin:10px 0 0; overflow-y:auto;
+  overscroll-behavior:contain; -webkit-overflow-scrolling:touch;
+  display:flex; flex-direction:column; gap:10px;
+  padding:1px 1px 8px; scroll-padding:4px;
+}
+.search-mode .horse-list[hidden] { display:none; }
+.search-mode .horse-card, .search-mode .horse-list>.empty { flex-shrink:0; }

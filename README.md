@@ -1,4 +1,4 @@
-# 馬の手帖 ver.2.1.3 — HORSE NOTES
+# 馬の手帖 ver.2.1.4 — HORSE NOTES
 
 日本語の競馬メモ閲覧PWAです。静的HTML・CSS・JavaScriptだけで動作します。
 
@@ -48,7 +48,7 @@ PC版・iPhone版、別のブラウザー・ホーム画面アプリでは保存
 
 このリポジトリーに実データやCSVをアップロードしないでください。
 
-## ver.2.1.3 のUI
+## ver.2.1.4 のUI
 
 ヘッダーの更新アイコンでGoogle Sheetsの取得、☰メニューでGoogle連携設定・CSV取り込み・表示データ切り替えを行います。取得中は回転表示と操作抑止、成功・失敗はヘッダー直下のメッセージで確認できます。未設定の場合は設定画面を開きます。
 
@@ -58,7 +58,7 @@ iPhone向けに `viewport-fit=cover` と `env(safe-area-inset-*)` を使い、�
 
 ### UI回帰確認
 
-Playwright（Node.js）とChromiumが利用できる環境で、リポジトリをローカルHTTP配信してから `node tests/ui.cjs` を実行します。既定URLは `http://127.0.0.1:8768`、ブラウザーは `/usr/bin/chromium` です。`BASE_URL` と `CHROMIUM_PATH` で変更できます。アプリ本体への依存パッケージ追加は不要です。
+Playwright（Node.js）とChromiumが利用できる環境で、リポジトリをローカルHTTP配信してから `node tests/ui.cjs` を実行します。既定URLは `http://127.0.0.1:8769`、ブラウザーは `/usr/bin/chromium` です。`BASE_URL` と `CHROMIUM_PATH` で変更できます。アプリ本体への依存パッケージ追加は不要です。
 
 テストは隔離したブラウザー内で架空CSVとGoogle APIのモックだけを使います。320〜1280pxと横画面、固定ヘッダー、47pxのsafe-area代入、メニュー、空欄・1文字・消去の検索、カード選択・スクロール、フィルター、CSV取り込み、v1/v2保存復元、オフライン閲覧、Sheets取得中・成功・403失敗時のデータ保持を確認します。
 
@@ -81,3 +81,13 @@ HTMLのCSS・JavaScript・manifest参照とService Workerのプリキャッシ�
 ステータスバー用の黒い領域はOSから通知される `safe-area-inset-top` の高さだけを確保し、追加のpaddingやmarginを設けません。安全な領域を縮める代わりにiPhone幅のツールバー上下余白を12pxから4pxへ削減し、境界の角丸をなくして水平な直線にします。iOSの時刻等の配置やsafe-area自体の高さはアプリから変更しません。固定と詳細へのスクロール補正を維持します。
 
 版付きアセットURLとService Workerのキャッシュをver.2.1.3へ更新します。Google設定・Sheets処理・CSV解析・localStorageの既存データや保存形式は変更しません。
+
+## ver.2.1.4 の検索モード
+
+スマートフォンで検索欄をフォーカスすると、キャッチコピーと説明文を一時的に折りたたみ、固定ヘッダー直下へ検索欄と候補を表示します。ページ本体はスクロールを固定し、候補一覧だけをvisualViewportの表示領域内でスクロールします。visualViewportのresize/scrollを追従し、safe-areaの上下・左右を維持します。IME確定や一時的なblurではモードを終了しません。
+
+カード選択時はキーボードを閉じて通常レイアウトに戻し、選択した馬のメモを表示します。キーボードが閉じる間のviewport変化にもスクロール位置を補正します。検索欄横の「閉じる」または変換中以外のEscapeで、検索文字を保持したまま元のページ位置へ戻れます。通常時の配置・余白、前方一致、カードのデザイン、保存キー・形式は従来どおりです。版付きアセットとService Workerキャッシュをver.2.1.4へ更新します。
+
+実際のiPhoneの日本語かなキーボード・ホーム画面PWAは実機未検証です。ブラウザー検証では320〜430px、IMEイベント列、visualViewportの高さ・offset変化を模擬して確認します。
+
+検索モードの操作検証は、ローカルHTTP配信後に `node tests/search-mode.cjs` で実行できます。320/360/375/390/414/430px、47pxのsafe-area、visualViewportの縮小・移動、かな入力「あ」の変換確定、候補内スクロール、タッチでのカード選択、閉じる・Escape・ページ位置復元、管理メニュー、visualViewport未対応時のフォールバックを確認します。実データ・認証情報は使いません。

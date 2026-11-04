@@ -29,7 +29,7 @@ const server=http.createServer((req,res)=>{
  let content=fs.readFileSync(file);
  if(name==='index.html'){
   res.setHeader('Cache-Control','no-store');
-  if(legacy)content=Buffer.from(content.toString().replaceAll('?v=2.1.3','').replaceAll('ver.2.1.3','ver.2.1.1'));
+  if(legacy)content=Buffer.from(content.toString().replaceAll('?v=2.1.4','').replaceAll('ver.2.1.4','ver.2.1.1'));
  }
  res.end(content);
 });
@@ -50,7 +50,7 @@ const server=http.createServer((req,res)=>{
    localStorage.setItem('horse-notes-google-client-id-v1','synthetic.apps.googleusercontent.com');
   },saved);
   errors.length=0;legacy=false;
-  await p.goto(url+'?upgrade=2.1.3');
+  await p.goto(url+'?upgrade=2.1.4');
   await p.waitForFunction(()=>document.querySelector('#header-update').dataset.state);
   assert.equal(versionedRequests,1);assert.equal(unversionedRequests,1);
   assert.equal(await p.locator('.horse-card').count(),0);
@@ -97,8 +97,8 @@ const server=http.createServer((req,res)=>{
   await p.locator('#search').fill('');assert(await p.locator('#horse-list').isHidden());
   // Return to the app's canonical start_url before checking offline navigation.
   await p.goto(url);await p.evaluate(()=>navigator.serviceWorker.ready);await p.reload();await p.waitForFunction(()=>!!navigator.serviceWorker.controller);
-  const cached=await p.evaluate(async()=>{const key=(await caches.keys()).find(k=>k.endsWith('ver2-1-3-prefix'));return (await (await caches.open(key)).keys()).map(r=>new URL(r.url).pathname+new URL(r.url).search)});
-  for(const asset of ['app.js','style.css','csv-import.js','google-sheets.js'])assert(cached.some(p=>p.endsWith('/'+asset+'?v=2.1.3')));
+  const cached=await p.evaluate(async()=>{const key=(await caches.keys()).find(k=>k.endsWith('ver2-1-4-search-mode'));return (await (await caches.open(key)).keys()).map(r=>new URL(r.url).pathname+new URL(r.url).search)});
+  for(const asset of ['app.js','style.css','csv-import.js','google-sheets.js'])assert(cached.some(p=>p.endsWith('/'+asset+'?v=2.1.4')));
   await p.locator('#menu-button').click();await p.locator('#data-source').selectOption('imported');await p.locator('#close-menu').click();
   await c.setOffline(true);await p.reload();await p.locator('#search').fill('セラフィック');assert.equal(await p.locator('.horse-card').count(),1);await p.locator('.horse-card').click();assert(await p.locator('#detail').isVisible());
   assert.deepEqual(errors,[]);await c.close();
