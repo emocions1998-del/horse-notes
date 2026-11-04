@@ -75,7 +75,8 @@
   window.visualViewport?.addEventListener('resize',scheduleViewportUpdate);
   window.visualViewport?.addEventListener('scroll',scheduleViewportUpdate);
   window.addEventListener('resize',scheduleViewportUpdate);
-  document.addEventListener('pointerdown',()=>{pendingDetailScroll=false;},{passive:true});
+  document.addEventListener('pointerdown',()=>{pendingDetailScroll=false;document.documentElement.classList.remove('keyboard-navigation');},{passive:true});
+  document.addEventListener('keydown',event=>{if(event.key==='Tab')document.documentElement.classList.add('keyboard-navigation');});
   compactSearch.addEventListener('change',()=>{
     if (!compactSearch.matches) exitSearchMode();
     else if (document.activeElement===search) enterSearchMode();
@@ -140,6 +141,7 @@
     list.hidden = !query;
     $('#search-status').textContent = query ? `${matches.length}件の検索結果` : '';
     detail.hidden = !query || !matches.some(h => h.id === selectedId);
+    document.body.classList.toggle('has-detail',!detail.hidden);
     if (!query) { list.innerHTML = ''; return; }
     list.innerHTML = matches.length ? matches.map(h => {
       const note = latest(h);
@@ -160,12 +162,13 @@
     renderNotes();
   }
   function section(label, body, className = '') {
-    return body?.trim() ? `<section class="memo-section ${className}"><h5>${escape(label)}</h5><p class="note-body">${escape(body)}</p></section>` : '';
+    const icon = {'observation-view':'▤','hypothesis-view':'▥','personal-view':'✎'}[className];
+    return body?.trim() ? `<section class="memo-section ${className}"><h5>${icon ? `<span aria-hidden="true">${icon}</span>` : ''}${escape(label)}</h5><p class="note-body">${escape(body)}</p></section>` : '';
   }
   function noteContent(n, isImported) {
     if (!isImported) return `<div class="race-row"><h4>${escape(n.race)}</h4>${n.result ? `<span class="result">${escape(n.result)}</span>` : ''}</div><p class="course">${escape(n.course)}</p><h5>${escape(n.title)}</h5><p class="note-body">${escape(n.body)}</p><div class="note-tags">${n.tags.map(t => `<span># ${escape(t)}</span>`).join('')}</div>`;
     const metadata = [['記録者',n.recorder],['出典チャット',n.source],['備考',n.remarks],['CSVの馬名',n.rawName],...n.extras].filter(([,value]) => value.trim());
-    return `${n.race.trim() ? `<div class="race-row"><h4>${escape(n.race)}</h4></div>` : ''}${section('観察・レース内容',n.observation)}${section('当時の評価・仮説',n.hypothesis)}${n.views.map(view => section(view.author,view.body,view.author === '本人の見解' ? 'personal-view' : 'chappy-view')).join('')}${section('次走チェックポイント',n.checkpoint)}${section('次走注目',n.watch)}${metadata.length ? `<details class="record-details"><summary>記録の詳細</summary><dl>${metadata.map(([label,value]) => `<dt>${escape(label)}</dt><dd>${escape(value)}</dd>`).join('')}</dl></details>` : ''}`;
+    return `${n.race.trim() ? `<div class="race-row"><h4>${escape(n.race)}</h4></div>` : ''}${section('観察・レース内容',n.observation,'observation-view')}${section('当時の評価・仮説',n.hypothesis,'hypothesis-view')}${n.views.map(view => section(view.author,view.body,view.author === '本人の見解' ? 'personal-view' : 'chappy-view')).join('')}${section('次走チェックポイント',n.checkpoint)}${section('次走注目',n.watch)}${metadata.length ? `<details class="record-details"><summary>記録の詳細</summary><dl>${metadata.map(([label,value]) => `<dt>${escape(label)}</dt><dd>${escape(value)}</dd>`).join('')}</dl></details>` : ''}`;
   }
   function renderNotes() {
     const h = horses.find(h => h.id === selectedId);

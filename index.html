@@ -7,22 +7,22 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="馬の手帖">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="description" content="馬の手帖 ver.2.1.4。Google Sheetsの読み取り連携とCSV取り込みで、馬メモを検索・閲覧できます。">
+  <meta name="description" content="馬の手帖 ver.2.2。Google Sheetsの読み取り連携とCSV取り込みで、馬メモを検索・閲覧できます。">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://accounts.google.com/gsi/client; style-src 'self' https://accounts.google.com/gsi/style; frame-src https://accounts.google.com/gsi/; connect-src 'self' https://sheets.googleapis.com https://accounts.google.com/gsi/ https://oauth2.googleapis.com; img-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'">
-  <title>馬の手帖 ver.2.1.4 — HORSE NOTES</title>
-  <link rel="manifest" href="./manifest.webmanifest?v=2.1.4">
+  <title>馬の手帖 ver.2.2 — HORSE NOTES</title>
+  <link rel="manifest" href="./manifest.webmanifest?v=2.2">
   <link rel="icon" href="./icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="./icons/icon-192.png">
-  <link rel="stylesheet" href="./style.css?v=2.1.4">
-  <script defer src="./data.js?v=2.1.4"></script>
-  <script defer src="./csv-import.js?v=2.1.4"></script>
-  <script defer src="./google-config.js?v=2.1.4"></script>
-  <script defer src="./google-sheets.js?v=2.1.4"></script>
-  <script defer src="./app.js?v=2.1.4"></script>
+  <link rel="stylesheet" href="./style.css?v=2.2">
+  <script defer src="./data.js?v=2.2"></script>
+  <script defer src="./csv-import.js?v=2.2"></script>
+  <script defer src="./google-config.js?v=2.2"></script>
+  <script defer src="./google-sheets.js?v=2.2"></script>
+  <script defer src="./app.js?v=2.2"></script>
 </head>
 <body>
   <div class="app-header"><div class="status-bar-space" aria-hidden="true"></div>
-  <header class="topbar"><a class="brand" href="./" aria-label="馬の手帖 ホーム"><span class="brand-icon" aria-hidden="true">♞</span><span>馬の手帖<small>HORSE NOTES</small></span></a><div class="header-actions"><span class="local-badge"><i></i> ver.2.1.4</span><button id="header-update" class="icon-button refresh-button" type="button" aria-label="Google Sheetsの最新データを取得" aria-describedby="header-sync-status"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 4v6h-6M4 20v-6h6M4.5 9a8 8 0 0 1 13-3L20 10M4 14l2.5 4a8 8 0 0 0 13-3"/></svg></button><button id="menu-button" class="icon-button menu-button" type="button" aria-label="管理メニューを開く" aria-haspopup="dialog" aria-controls="management-menu" aria-expanded="false">☰</button></div></header>
+  <header class="topbar"><a class="brand" href="./" aria-label="馬の手帖 ホーム"><span class="brand-icon" aria-hidden="true">♞</span><span>馬の手帖<small>HORSE NOTES</small></span></a><div class="header-actions"><span class="local-badge"><i></i> ver.2.2</span><button id="header-update" class="icon-button refresh-button" type="button" aria-label="Google Sheetsの最新データを取得" aria-describedby="header-sync-status"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 4v6h-6M4 20v-6h6M4.5 9a8 8 0 0 1 13-3L20 10M4 14l2.5 4a8 8 0 0 0 13-3"/></svg></button><button id="menu-button" class="icon-button menu-button" type="button" aria-label="管理メニューを開く" aria-haspopup="dialog" aria-controls="management-menu" aria-expanded="false">☰</button></div></header>
   </div>
   <p id="header-sync-status" class="header-sync-status" role="status" aria-live="polite"></p>
   <main>

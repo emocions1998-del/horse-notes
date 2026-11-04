@@ -379,3 +379,102 @@ body.search-mode { position:fixed; top:var(--search-page-top,0px); left:0; width
 }
 .search-mode .horse-list[hidden] { display:none; }
 .search-mode .horse-card, .search-mode .horse-list>.empty { flex-shrink:0; }
+
+/* ver.2.2: light reading surface is scoped to the selected horse and its footer. */
+.detail {
+  --paper:#faf8f2; --ink:#102d20; --reading-muted:#4e6051;
+  --reading-line:#7c8f76; --warm-card:#fbf1e0;
+  color-scheme:light; color:var(--ink); background:var(--paper);
+  border-top:4px solid var(--accent); padding:24px;
+}
+.detail .horse-header { gap:12px; }
+.detail .horse-header .eyebrow { color:#406526; font-size:11px; letter-spacing:.18em; }
+.detail .horse-header h2 { color:var(--ink); font-size:30px; font-weight:750; line-height:1.5; }
+.detail #horse-name:focus { outline:none; }
+.keyboard-navigation .detail #horse-name:focus { outline:2px solid #315d30; outline-offset:4px; }
+.detail .horse-meta { color:var(--ink); font-size:14px; margin-top:8px; }
+.detail .profile-mark { color:#244c32; font-size:60px; }
+.detail .horse-summary { color:var(--reading-muted); font-size:14px; }
+.detail .next-race {
+  background:#edf2dd; border:1px solid #809b62; border-radius:10px;
+  padding:18px; margin-bottom:24px;
+}
+.detail .next-heading { align-items:flex-start; flex-wrap:wrap; gap:8px; }
+.detail .next-heading h3 { color:var(--ink); font-size:17px; }
+.detail .next-race .checkpoint-body { color:var(--ink); font-size:16px; font-weight:650; line-height:1.9; }
+.detail .next-race .condition-source { color:#43553b; font-size:12px; line-height:1.8; }
+.detail .condition-tags span { color:#284323; background:#e0e8cd; border-color:#91a374; }
+.detail .watch-label { background:#45661f; border-color:#99b93a; color:#efffa1; font-weight:600; }
+.detail .notes-section>.section-heading { flex-wrap:wrap; }
+.detail .notes-section>.section-heading h3 { color:var(--ink); font-size:19px; }
+.detail .notes-section>.section-heading h3>span { color:var(--ink); background:#dce0d2; font-size:13px; }
+.detail .sort-label { color:var(--ink); font-size:12px; margin-left:auto; }
+.detail select { background:var(--paper); border-color:var(--reading-line); color:var(--ink); font-size:13px; }
+.detail .filters { border-color:#a4b09a; gap:10px 20px; }
+.detail .filter { color:var(--ink); font-size:14px; font-weight:500; }
+.detail .filter.active { color:#244b20; border-color:#a2cd26; border-bottom-width:3px; font-weight:700; }
+.detail .timeline-caption { color:var(--reading-muted); font-size:12px; }
+.detail .timeline { border-color:#244736; padding-left:16px; }
+.detail .note {
+  color:var(--ink); background:var(--warm-card); border:1px solid #244736;
+  border-radius:12px; padding:16px; margin-bottom:18px;
+}
+.detail .note:before { background:#416e27; border-color:var(--paper); left:-22px; width:10px; height:10px; }
+.detail .note-top { margin-bottom:12px; }
+.detail .type-badge { background:#466719; color:#f4ffc4; border-color:#91b832; font-size:11px; font-weight:650; }
+.detail .before .type-badge { background:#dce8ee; color:#214b61; border-color:#7393a1; }
+.detail .note-date,.detail time { color:var(--ink); font-size:12px; }
+.detail .uncertain-date { color:#705221; }
+.detail .race-row { align-items:flex-start; }
+.detail .race-row h4 { color:var(--ink); font-size:19px; line-height:1.6; }
+.detail .result { color:#3e501f; background:#e1e8c8; }
+.detail .course,.detail .note-tags { color:var(--reading-muted); font-size:12px; }
+.detail .note h5 { color:var(--ink); }
+.detail .note-body { color:var(--ink); font-size:15px; line-height:1.95; }
+.detail .memo-section { margin-top:14px; }
+.detail .memo-section h5 { font-size:13px; letter-spacing:0; line-height:1.65; }
+.detail .memo-section h5>span { display:inline-block; margin-right:9px; font-size:18px; line-height:1; }
+.detail .observation-view,.detail .hypothesis-view { border-radius:8px; overflow:hidden; }
+.detail .observation-view h5,.detail .hypothesis-view h5 {
+  margin:0; padding:7px 12px; display:flex; align-items:center;
+}
+.detail .observation-view .note-body,.detail .hypothesis-view .note-body { padding:8px 12px; }
+.detail .observation-view { background:#e6f0f4; }
+.detail .observation-view h5 { color:#1b4563; background:#c5ddeb; }
+.detail .hypothesis-view { background:#eff0dd; }
+.detail .hypothesis-view h5 { color:#324818; background:#dce2bb; }
+.detail .personal-view { background:#eaf8b0; border:0; border-radius:10px; padding:9px; }
+.detail .personal-view h5 { color:#183821; margin:0 0 7px; padding:0 4px; display:flex; align-items:center; }
+.detail .personal-view .note-body { background:#23482f; color:#ffffff; border-radius:8px; padding:12px 14px; }
+.detail .chappy-view { background:#e5eaf0; border-color:#6e879b; }
+.detail .chappy-view h5 { color:#2d4b65; }
+.detail .record-details { color:var(--reading-muted); border-color:#a4b09a; }
+.detail .record-details dt { color:#4e6051; font-size:11px; }
+.detail .record-details dd { color:var(--ink); font-size:13px; }
+.detail .empty { background:var(--warm-card); border-color:#a4b09a; color:var(--reading-muted); }
+.detail .empty h4 { color:var(--ink); }
+.detail button:focus-visible,.detail select:focus-visible,.detail summary:focus-visible { outline-color:#315d30; }
+.has-detail footer { background:#faf8f2; color:#4e6051; border-color:#a4b09a; margin-top:0; padding:24px; }
+.has-detail footer>span:first-child,.has-detail footer .text-button { color:#244736; }
+@media(max-width:760px) {
+  .detail {
+    width:calc(100% + max(16px,env(safe-area-inset-left,0px)) + max(16px,env(safe-area-inset-right,0px)));
+    margin-left:calc(-1 * max(16px,env(safe-area-inset-left,0px)));
+    margin-right:calc(-1 * max(16px,env(safe-area-inset-right,0px)));
+    padding:20px max(16px,env(safe-area-inset-right,0px)) 24px max(16px,env(safe-area-inset-left,0px));
+  }
+  .detail .horse-header h2 { font-size:27px; }
+  .detail .profile-mark { font-size:48px; padding-right:0; }
+  .detail .horse-meta { font-size:13px; }
+  .detail .next-race { padding:14px; }
+  .detail .next-heading h3 { font-size:16px; }
+  .detail .note { padding:13px; }
+  .detail .race-row h4 { font-size:18px; }
+  .detail .note-body { font-size:15px; }
+  .has-detail footer {
+    margin-left:calc(-1 * max(16px,env(safe-area-inset-left,0px)));
+    margin-right:calc(-1 * max(16px,env(safe-area-inset-right,0px)));
+    padding:20px max(16px,env(safe-area-inset-right,0px)) calc(20px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));
+  }
+}
+.has-detail footer .text-button:focus-visible { outline-color:#315d30; }
