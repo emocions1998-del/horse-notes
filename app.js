@@ -12,11 +12,80 @@
   let saved = null, imported = null, pending = null;
   let sampleSelected = false;
   let renderedSearchValue = null;
+  const compactSearch = window.matchMedia('(max-width: 760px), (pointer: coarse) and (max-width: 1024px)');
+  let searchMode = false, composing = false, pageScrollBeforeSearch = 0;
+  let pendingDetailScroll = false, detailScrollTimer = null, viewportFrame = null;
+  function updateSearchViewport() {
+    const viewport = window.visualViewport;
+    const style = document.documentElement.style;
+    style.setProperty('--search-viewport-top',`${viewport?.offsetTop || 0}px`);
+    style.setProperty('--search-viewport-left',`${viewport?.offsetLeft || 0}px`);
+    style.setProperty('--search-viewport-width',`${viewport?.width || window.innerWidth}px`);
+    style.setProperty('--search-viewport-height',`${viewport?.height || window.innerHeight}px`);
+    if (pendingDetailScroll && !searchMode && !detail.hidden) {
+      detail.scrollIntoView({behavior:'instant',block:'start'});
+    }
+  }
+  function scheduleViewportUpdate() {
+    if (viewportFrame !== null) return;
+    viewportFrame = requestAnimationFrame(()=>{viewportFrame=null;updateSearchViewport();});
+  }
+  function enterSearchMode() {
+    if (searchMode || !compactSearch.matches) return;
+    pendingDetailScroll=false;
+    pageScrollBeforeSearch=window.scrollY;
+    document.body.style.setProperty('--search-page-top',`${-pageScrollBeforeSearch}px`);
+    updateSearchViewport();
+    searchMode=true;
+    document.body.classList.add('search-mode');
+    list.scrollTop=0;
+    $('#close-search').hidden=false;
+    search.setAttribute('aria-expanded','true');
+    scheduleViewportUpdate();
+  }
+  function exitSearchMode(restoreScroll = true) {
+    if (!searchMode) return;
+    searchMode=false;
+    search.blur();
+    composing=false;
+    document.body.classList.remove('search-mode');
+    document.body.style.removeProperty('--search-page-top');
+    $('#close-search').hidden=true;
+    search.setAttribute('aria-expanded','false');
+    if (restoreScroll) window.scrollTo({top:pageScrollBeforeSearch,behavior:'instant'});
+  }
+  function revealSelectedHorse() {
+    $('#horse-name')?.focus({preventScroll:true});
+    pendingDetailScroll=true;
+    clearTimeout(detailScrollTimer);
+    // Re-align after the keyboard's viewport animation; a new touch cancels this correction.
+    detailScrollTimer=setTimeout(()=>{pendingDetailScroll=false;},1000);
+    updateSearchViewport();
+    scheduleViewportUpdate();
+  }
+  search.addEventListener('focus',enterSearchMode);
+  search.addEventListener('compositionstart',()=>{composing=true;});
+  search.addEventListener('compositionend',()=>{composing=false;});
+  search.addEventListener('keydown',event=>{
+    if (composing || event.isComposing || event.keyCode===229) return;
+    if (event.key==='Enter') {event.preventDefault();refreshSearch();}
+    if (event.key==='Escape' && searchMode) {event.preventDefault();exitSearchMode();$('#menu-button').focus({preventScroll:true});}
+  });
+  $('#close-search').addEventListener('click',()=>{exitSearchMode();$('#menu-button').focus({preventScroll:true});});
+  window.visualViewport?.addEventListener('resize',scheduleViewportUpdate);
+  window.visualViewport?.addEventListener('scroll',scheduleViewportUpdate);
+  window.addEventListener('resize',scheduleViewportUpdate);
+  document.addEventListener('pointerdown',()=>{pendingDetailScroll=false;},{passive:true});
+  compactSearch.addEventListener('change',()=>{
+    if (!compactSearch.matches) exitSearchMode();
+    else if (document.activeElement===search) enterSearchMode();
+  });
   let googleSync = null;
   let csvReading = false;
   let sheetsState = null, updateSucceeded = false, showSyncStatus = false;
   const menu = $('#management-menu');
   function openMenu(showGoogle = false) {
+    exitSearchMode();
     if (!menu.open) menu.showModal();
     $('#menu-button').setAttribute('aria-expanded','true');
     if (showGoogle) { $('#google-settings').open = true; $('#google-client-id').focus(); }
@@ -29,6 +98,7 @@
   });
   // Both update buttons use this synchronous entry point so iOS can open OAuth from the tap.
   function requestSheetsUpdate() {
+    exitSearchMode();
     showSyncStatus = true; updateSucceeded = false;
     if (pending || csvReading) {
       $('#header-sync-status').textContent = 'CSVの読み込み・列確認を完了またはキャンセルしてから取得してください。';
@@ -62,6 +132,7 @@
     $('#import-status').classList.toggle('error', error);
   }
   function renderList() {
+    const queryChanged = renderedSearchValue !== search.value;
     renderedSearchValue = search.value;
     const query = normalize(search.value);
     const canSearch = saved?.active === 'imported' || sampleSelected;
@@ -74,7 +145,8 @@
       const note = latest(h);
       const recordInfo = `${h.notes.length}件の記録${note ? ` · ${dateLabel(note)}` : ''}`;
       return `<button class="horse-card ${selectedId === h.id ? 'selected' : ''}" data-horse="${escape(h.id)}" aria-pressed="${selectedId === h.id}"><span class="horse-monogram" aria-hidden="true">♞</span><span class="horse-info"><span class="profile-eyebrow">HORSE PROFILE</span><strong>${escape(h.name)}</strong><small>${escape(recordInfo)}</small></span><span class="card-arrow" aria-hidden="true">›</span></button>`;
-    }).join('') : '<div class="empty"><span aria-hidden="true">⌕</span><h3>馬が見つかりませんでした</h3><p>馬名の一部や、ひらがなでも<br>検索できます。</p><button id="reset-search" class="secondary-button">検索をクリア</button></div>';
+    }).join('') : '<div class="empty"><span aria-hidden="true">⌕</span><h3>馬が見つかりませんでした</h3><p>馬名の先頭や、ひらがなでも<br>検索できます。</p><button id="reset-search" class="secondary-button">検索をクリア</button></div>';
+    if (queryChanged) list.scrollTop=0;
   }
   function renderDetail() {
     const h = horses.find(h => h.id === selectedId);
@@ -102,6 +174,7 @@
     $('#timeline').innerHTML = notes.length ? notes.map(n => `<article class="note ${n.type === 'before' ? 'before' : n.type === 'after' ? 'after' : 'other'}"><div class="note-top"><span class="type-badge">${escape(typeLabel(n))}</span><span class="note-date">${n.date ? `<time datetime="${escape(n.date)}">${escape(dateLabel(n))}${!h.imported ? ` <span>${escape(n.date.slice(11))}</span>` : ''}</time>` : `<span class="uncertain-date">${escape(dateLabel(n))}</span>`}</span></div>${noteContent(n,h.imported)}</article>`).join('') : '<div class="empty"><h4>この種類のメモはまだありません</h4><p>「すべて」を選ぶと、ほかのメモを確認できます。</p></div>';
   }
   function renderSource() {
+    exitSearchMode();
     const active = saved?.active === 'imported';
     sampleSelected = sampleSelected || saved?.active === 'sample';
     sourceSelect.value = active ? 'imported' : 'sample';
@@ -176,11 +249,10 @@
     if (event.target.closest('#reset-search')) { search.value = ''; selectedId=null; renderList(); search.focus(); return; }
     const button = event.target.closest('[data-horse]');
     if (!button) return;
+    const wasSearchMode=searchMode;
+    exitSearchMode(false);
     selectedId = button.dataset.horse; filter = initialFilter(horses.find(h => h.id === selectedId)); renderList(); renderDetail();
-    if (window.matchMedia('(max-width: 760px)').matches) {
-      $('#horse-name').focus({preventScroll:true});
-      detail.scrollIntoView({behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth',block:'start'});
-    }
+    if (wasSearchMode || compactSearch.matches) revealSelectedHorse();
   });
   function refreshSearch() {
     // Duplicate IME/blur events must not rebuild a card between touch-down and click.
