@@ -8,8 +8,9 @@
   const fileInput = $('#csv-file'), sourceSelect = $('#data-source');
   const mobileLayout = window.matchMedia('(max-width: 760px)');
   let horses = window.HORSES;
-  let selectedId = horses[0].id, filter = 'all', order = 'new';
+  let selectedId = null, filter = 'all', order = 'new';
   let saved = null, imported = null, pending = null;
+  let sampleSelected = false;
   let googleSync = null;
   let csvReading = false;
   let sheetsState = null, updateSucceeded = false, showSyncStatus = false;
@@ -61,16 +62,16 @@
   }
   function renderList() {
     const query = normalize(search.value);
-    const matches = horses.filter(h => normalize(h.name).includes(query) || normalize(h.reading).includes(query));
-    $('#total-count').textContent = `${horses.length}頭`;
-    $('#result-count').textContent = `${matches.length}頭`;
-    detail.hidden = !matches.length;
-    if (matches.length && !matches.some(h => h.id === selectedId)) {
-      selectedId = matches[0].id; filter = initialFilter(matches[0]); renderDetail();
-    }
+    const canSearch = saved?.active === 'imported' || sampleSelected;
+    const matches = query && canSearch ? horses.filter(h => normalize(h.name).includes(query) || normalize(h.reading || '').includes(query)) : [];
+    list.hidden = !query;
+    $('#search-status').textContent = query ? `${matches.length}件の検索結果` : '';
+    detail.hidden = !query || !matches.some(h => h.id === selectedId);
+    if (!query) { list.innerHTML = ''; return; }
     list.innerHTML = matches.length ? matches.map(h => {
-      const metadata = h.imported ? sourceLabel() : `${h.sex}${h.age}歳 · ${h.coat} · ${h.style}`;
-      return `<button class="horse-card ${selectedId === h.id ? 'selected' : ''}" data-horse="${escape(h.id)}" aria-pressed="${selectedId === h.id}"><span class="horse-monogram" aria-hidden="true">♞</span><span class="horse-info"><span class="profile-eyebrow">HORSE PROFILE</span><strong>${escape(h.name)}</strong><span>${escape(metadata)}</span><small>${h.notes.length}件のメモ <b>·</b> ${escape(dateLabel(latest(h)))}</small></span><span class="card-arrow" aria-hidden="true">›</span></button>`;
+      const note = latest(h);
+      const recordInfo = `${h.notes.length}件の記録${note ? ` · ${dateLabel(note)}` : ''}`;
+      return `<button class="horse-card ${selectedId === h.id ? 'selected' : ''}" data-horse="${escape(h.id)}" aria-pressed="${selectedId === h.id}"><span class="horse-monogram" aria-hidden="true">♞</span><span class="horse-info"><span class="profile-eyebrow">HORSE PROFILE</span><strong>${escape(h.name)}</strong><small>${escape(recordInfo)}</small></span><span class="card-arrow" aria-hidden="true">›</span></button>`;
     }).join('') : '<div class="empty"><span aria-hidden="true">⌕</span><h3>馬が見つかりませんでした</h3><p>馬名の一部や、ひらがなでも<br>検索できます。</p><button id="reset-search" class="secondary-button">検索をクリア</button></div>';
   }
   function renderDetail() {
@@ -100,16 +101,17 @@
   }
   function renderSource() {
     const active = saved?.active === 'imported';
+    sampleSelected = sampleSelected || saved?.active === 'sample';
     sourceSelect.value = active ? 'imported' : 'sample';
     sourceSelect.querySelector('option[value="imported"]').disabled = !imported;
-    $('#source-title').textContent = active ? '取り込んだ馬メモを表示中' : 'サンプルデータでお試し中';
+    $('#source-title').textContent = active ? '取り込んだ馬メモを表示中' : (sampleSelected ? 'サンプルデータでお試し中' : 'データを取り込んでください');
     $('#source-description').textContent = active ? `${saved.fileName} · ${imported.horses.length}頭 / ${imported.count}件 · このブラウザーに保存済み` : '馬名・レース・見解はすべて架空です。';
     $('#source-tag').textContent = active ? (saved.sourceType === 'google-sheets' ? 'SHEETS' : 'CSV') : 'DEMO';
     const updatedAt = saved?.fetchedAt || saved?.importedAt;
     const updatedLabel = updatedAt && !Number.isNaN(Date.parse(updatedAt)) ? new Date(updatedAt).toLocaleString('ja-JP') : '日時不明';
-    $('#data-update-info').textContent = saved ? `保存データの取得元：${sourceLabel()} · 最終更新：${updatedLabel} · ${imported.count}件` : '保存データはまだありません。現在はサンプルを表示しています。';
+    $('#data-update-info').textContent = saved ? `保存データの取得元：${sourceLabel()} · 最終更新：${updatedLabel} · ${imported.count}件` : (sampleSelected ? '保存データはまだありません。サンプルの検索を有効にしています。' : '保存データはまだありません。CSV取り込みかGoogle Sheets取得を行ってください。');
     horses = active ? imported.horses : window.HORSES;
-    selectedId = horses[0]?.id; filter = initialFilter(horses[0]); search.value = '';
+    selectedId = null; filter = 'all'; search.value = '';
     renderList(); renderDetail();
   }
   function persist(value) {
@@ -160,12 +162,16 @@
   $('#mapping-dialog').addEventListener('close', () => { if (pending) { pending = null; status('取り込みをキャンセルしました。保存データは変更していません。'); } });
   sourceSelect.addEventListener('change', () => {
     googleSync?.cancelPending();
-    if (!saved || !imported) { sourceSelect.value = 'sample'; return; }
+    if (!saved || !imported) { sampleSelected=true; renderSource(); return; }
     try { const candidate = {...saved,active:sourceSelect.value}; persist(candidate); saved = candidate; renderSource(); status('表示データを切り替えました。取り込んだデータは保存されています。'); }
     catch (error) { sourceSelect.value = saved.active; status(error.message,true); }
   });
+  $('#show-sample').addEventListener('click',()=>{
+    sourceSelect.value='sample';
+    sourceSelect.dispatchEvent(new Event('change'));
+  });
   list.addEventListener('click', event => {
-    if (event.target.closest('#reset-search')) { search.value = ''; renderList(); search.focus(); return; }
+    if (event.target.closest('#reset-search')) { search.value = ''; selectedId=null; renderList(); search.focus(); return; }
     const button = event.target.closest('[data-horse]');
     if (!button) return;
     selectedId = button.dataset.horse; filter = initialFilter(horses.find(h => h.id === selectedId)); renderList(); renderDetail();
@@ -174,7 +180,7 @@
       detail.scrollIntoView({behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth',block:'start'});
     }
   });
-  search.addEventListener('input',renderList);
+  search.addEventListener('input',()=>{selectedId=null;renderList();});
   mobileLayout.addEventListener('change',renderList);
   detail.addEventListener('click', event => {
     const button = event.target.closest('[data-filter]');
@@ -191,7 +197,7 @@
     if (serialized) {
       const restored = CSV.restore(serialized); saved = restored.saved; imported = restored.result;
     }
-  } catch { status('保存データを復元できませんでした。サンプルを表示します。保存データは削除していません。元のCSVから再取り込みしてください。',true); }
+  } catch { status('保存データを復元できませんでした。保存データは削除していません。元のCSVから再取り込みしてください。',true); }
   renderSource();
   if (window.HorseSheets) {
     const configKey = 'horse-notes-google-client-id-v1';
@@ -237,5 +243,11 @@
     $('#google-disconnect').addEventListener('click',()=>googleSync.disconnect());
     $('#google-retry').addEventListener('click',()=>void googleSync.retry());
   }
+  // Keep card-selection scrolling below the actual header, including iOS safe-area.
+  const appHeader = $('.app-header');
+  const measureHeader = () => document.documentElement.style.setProperty('--header-height',`${appHeader.getBoundingClientRect().height}px`);
+  measureHeader();
+  if ('ResizeObserver' in window) new ResizeObserver(measureHeader).observe(appHeader);
+  window.addEventListener('resize',measureHeader);
   if ('serviceWorker' in navigator && window.location.protocol !== 'file:') navigator.serviceWorker.register('./sw.js').catch(() => {});
 })();
