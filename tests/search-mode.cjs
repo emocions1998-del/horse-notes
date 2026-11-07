@@ -11,7 +11,7 @@ const url=process.env.BASE_URL||'http://127.0.0.1:8770';
    Object.defineProperty(window,'visualViewport',{value:vv,configurable:true});
    window.setTestViewport=(width,height,offsetTop=0)=>{Object.assign(vv,{width,height,offsetTop});vv.dispatchEvent(new Event('resize'));vv.dispatchEvent(new Event('scroll'));};
   });
-  await c.route('**/style.css?v=2.3',async r=>{const response=await r.fetch();await r.fulfill({response,body:(await response.text()).replaceAll('env(safe-area-inset-top,0px)','47px')});});
+  await c.route('**/style.css?v=2.4',async r=>{const response=await r.fetch();await r.fulfill({response,body:(await response.text()).replaceAll('env(safe-area-inset-top,0px)','47px')});});
   const p=await c.newPage(),errors=[];p.on('pageerror',e=>errors.push(e.message));
   await p.goto(url);await p.waitForFunction(()=>document.querySelector('#header-update').dataset.state);
   // Add only in-memory candidates to exercise an overflowing list.

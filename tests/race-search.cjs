@@ -22,7 +22,7 @@ const csv=values.map(r=>r.map(v=>'"'+v.replaceAll('"','""')+'"').join(',')).join
    const vv=new EventTarget();Object.assign(vv,{width:innerWidth,height:innerHeight,offsetTop:0,offsetLeft:0});Object.defineProperty(window,'visualViewport',{value:vv});
    window.setTestViewport=(height,offsetTop=0)=>{Object.assign(vv,{width:innerWidth,height,offsetTop});vv.dispatchEvent(new Event('resize'));};
   });
-  await c.route('**/style.css?v=2.3',async r=>{const response=await r.fetch();await r.fulfill({response,body:(await response.text()).replaceAll('env(safe-area-inset-top,0px)','47px')});});
+  await c.route('**/style.css?v=2.4',async r=>{const response=await r.fetch();await r.fulfill({response,body:(await response.text()).replaceAll('env(safe-area-inset-top,0px)','47px')});});
   await c.route('https://accounts.google.com/gsi/client',r=>r.fulfill({contentType:'application/javascript',body:`window.google={accounts:{oauth2:{hasGrantedAllScopes:()=>true,initTokenClient:o=>({requestAccessToken:()=>o.callback({access_token:'synthetic-token',expires_in:3600})})}}};`}));
   let requestedRange='';
   await c.route('https://sheets.googleapis.com/**',r=>{requestedRange=decodeURIComponent(new URL(r.request().url()).pathname);return r.fulfill({contentType:'application/json',body:JSON.stringify({majorDimension:'ROWS',values})});});
