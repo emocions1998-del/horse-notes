@@ -11,7 +11,7 @@ const url=process.env.BASE_URL||'http://127.0.0.1:8770';
    Object.defineProperty(window,'visualViewport',{value:vv,configurable:true});
    window.setTestViewport=(width,height,offsetTop=0)=>{Object.assign(vv,{width,height,offsetTop});vv.dispatchEvent(new Event('resize'));vv.dispatchEvent(new Event('scroll'));};
   });
-  await c.route('**/style.css?v=2.2',async r=>{const response=await r.fetch();await r.fulfill({response,body:(await response.text()).replaceAll('env(safe-area-inset-top,0px)','47px')});});
+  await c.route('**/style.css?v=2.3',async r=>{const response=await r.fetch();await r.fulfill({response,body:(await response.text()).replaceAll('env(safe-area-inset-top,0px)','47px')});});
   const p=await c.newPage(),errors=[];p.on('pageerror',e=>errors.push(e.message));
   await p.goto(url);await p.waitForFunction(()=>document.querySelector('#header-update').dataset.state);
   // Add only in-memory candidates to exercise an overflowing list.
@@ -30,7 +30,8 @@ const url=process.env.BASE_URL||'http://127.0.0.1:8770';
     const header=document.querySelector('.app-header').getBoundingClientRect();
     const controls=document.querySelector('.search-controls').getBoundingClientRect();
     const list=document.querySelector('#horse-list').getBoundingClientRect();
-    return {header:header.bottom,controlsTop:controls.top,controlsBottom:controls.bottom,listTop:list.top,listBottom:list.bottom,viewportBottom:visualViewport.offsetTop+visualViewport.height};
+    const tabs=document.querySelector('.search-tabs').getBoundingClientRect();
+    return {tabsTop:tabs.top,tabsBottom:tabs.bottom,header:header.bottom,controlsTop:controls.top,controlsBottom:controls.bottom,listTop:list.top,listBottom:list.bottom,viewportBottom:visualViewport.offsetTop+visualViewport.height};
    });
    // iPhone kana preedit, IME Enter, then commit with no trailing input event.
    await p.locator('#search').evaluate(el=>{
@@ -49,7 +50,8 @@ const url=process.env.BASE_URL||'http://127.0.0.1:8770';
    assert(await p.locator('body').evaluate(el=>el.classList.contains('search-mode')));
    const after=await geometry();
    assert.equal(after.controlsTop,before.controlsTop);assert.equal(after.listTop,before.listTop);
-   assert(after.controlsTop>=after.header && after.controlsTop-after.header<=12);
+   assert(after.tabsTop>=after.header && after.tabsTop-after.header<=12);
+   assert(after.controlsTop>=after.tabsBottom && after.controlsTop-after.tabsBottom<=12);
    assert(after.listTop-after.controlsBottom<=12);
    assert(after.listBottom<=after.viewportBottom);
    if(width===390 && process.env.UI_SCREENSHOT)await p.screenshot({path:process.env.UI_SCREENSHOT});

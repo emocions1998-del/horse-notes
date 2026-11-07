@@ -12,9 +12,11 @@
   let saved = null, imported = null, pending = null;
   let sampleSelected = false;
   let renderedSearchValue = null;
+  let searchType = 'horse', selectedRace = null, raceGroups = [];
+  const searchValues = {horse:'',race:''};
   const compactSearch = window.matchMedia('(max-width: 760px), (pointer: coarse) and (max-width: 1024px)');
   let searchMode = false, composing = false, pageScrollBeforeSearch = 0;
-  let pendingDetailScroll = false, detailScrollTimer = null, viewportFrame = null;
+  let pendingDetailScroll = false, detailScrollTimer = null, viewportFrame = null, detailTargetId = null;
   function updateSearchViewport() {
     const viewport = window.visualViewport;
     const style = document.documentElement.style;
@@ -23,7 +25,7 @@
     style.setProperty('--search-viewport-width',`${viewport?.width || window.innerWidth}px`);
     style.setProperty('--search-viewport-height',`${viewport?.height || window.innerHeight}px`);
     if (pendingDetailScroll && !searchMode && !detail.hidden) {
-      detail.scrollIntoView({behavior:'instant',block:'start'});
+      (document.getElementById(detailTargetId) || detail).scrollIntoView({behavior:'instant',block:'start'});
     }
   }
   function scheduleViewportUpdate() {
@@ -55,7 +57,7 @@
     if (restoreScroll) window.scrollTo({top:pageScrollBeforeSearch,behavior:'instant'});
   }
   function revealSelectedHorse() {
-    $('#horse-name')?.focus({preventScroll:true});
+    (document.getElementById(detailTargetId) || $('#horse-name'))?.focus({preventScroll:true});
     pendingDetailScroll=true;
     clearTimeout(detailScrollTimer);
     // Re-align after the keyboard's viewport animation; a new touch cancels this correction.
@@ -128,6 +130,37 @@
   };
   const initialFilter = horse => horse?.notes.some(n => filterKey(n) === 'after') ? 'after' : 'all';
   const sourceLabel = () => saved?.sourceType === 'google-sheets' ? 'Google Sheetsから取得' : 'CSVから取り込み';
+  // 開催年は開催日だけから判定する。記録日で古いメモの開催年を推測しない。
+  const raceKey = note => JSON.stringify([note.race.trim().normalize('NFKC'),note.raceDate || (note.rawRaceDate || '').trim()]);
+  const raceLabel = race => race.date ? `${race.date.slice(0,4)}年 ${race.name}（${race.date.replaceAll('-','/')}）` : `${race.name}（開催日未登録・不明）`;
+  function buildRaceGroups() {
+    const groups = new Map();
+    for (const h of horses) for (const note of h.notes) {
+      if (!note.race.trim()) continue;
+      const key = raceKey(note);
+      if (!groups.has(key)) groups.set(key,{key,name:note.race.trim(),date:note.raceDate || '',horses:new Map()});
+      const group = groups.get(key);
+      if (!group.horses.has(h.id)) group.horses.set(h.id,{horse:h,notes:[]});
+      group.horses.get(h.id).notes.push(note);
+    }
+    raceGroups = [...groups.values()].sort((a,b)=>b.date.localeCompare(a.date) || a.name.localeCompare(b.name,'ja'));
+  }
+  function renderRaceList(query, canSearch, queryChanged) {
+    const matches = query && canSearch ? raceGroups.filter(r=>normalize(r.name).includes(query)) : [];
+    if (selectedRace && !matches.includes(selectedRace)) selectedRace=null;
+    list.hidden = !query;
+    list.classList.add('race-results');
+    detail.hidden = !query || !selectedRace?.horses.has(selectedId);
+    document.body.classList.toggle('has-detail',!detail.hidden);
+    $('#search-status').textContent = query ? (selectedRace ? `${raceLabel(selectedRace)} · 登録馬${selectedRace.horses.size}頭` : `${matches.length}件のレース`) : '';
+    if (!query) {list.innerHTML='';return;}
+    if (selectedRace) {
+      list.innerHTML = `<div class="race-heading"><button type="button" class="race-back" data-race-back>‹ レース一覧へ戻る</button><h3 tabindex="-1" id="selected-race-name">${escape(raceLabel(selectedRace))}</h3><p>登録馬 ${selectedRace.horses.size}頭</p></div>` + [...selectedRace.horses.values()].map(({horse:h,notes})=>`<button type="button" class="horse-card race-horse ${selectedId === h.id ? 'selected' : ''}" data-horse="${escape(h.id)}" aria-pressed="${selectedId === h.id}"><span class="horse-info"><strong>${escape(h.name)}</strong><small>該当メモ ${notes.length}件</small></span><span class="card-arrow" aria-hidden="true">›</span></button>`).join('');
+    } else {
+      list.innerHTML = matches.length ? matches.map(r=>`<button type="button" class="race-card" data-race="${escape(r.key)}"><strong>${escape(r.name)}</strong><span>${r.date ? `${escape(r.date.slice(0,4))}年 · ${escape(r.date.replaceAll('-','/'))}` : '開催日未登録・不明'}</span><small>登録馬 ${r.horses.size}頭</small></button>`).join('') : '<div class="empty"><h3>レースが見つかりませんでした</h3><p>レース名の一部を変えてお試しください。<br>取得・取り込み済みのメモから検索します。</p><button id="reset-search" class="secondary-button">検索をクリア</button></div>';
+    }
+    if (queryChanged) list.scrollTop=0;
+  }
   function status(message, error = false) {
     $('#import-status').textContent = message;
     $('#import-status').classList.toggle('error', error);
@@ -137,6 +170,8 @@
     renderedSearchValue = search.value;
     const query = normalize(search.value);
     const canSearch = saved?.active === 'imported' || sampleSelected;
+    if (searchType === 'race') {renderRaceList(query,canSearch,queryChanged);return;}
+    list.classList.remove('race-results');
     const matches = query && canSearch ? horses.filter(h => normalize(h.name).startsWith(query) || normalize(h.reading || '').startsWith(query)) : [];
     list.hidden = !query;
     $('#search-status').textContent = query ? `${matches.length}件の検索結果` : '';
@@ -158,7 +193,7 @@
     if (!filters.has(filter)) filter = 'all';
     detail.innerHTML = `<div class="horse-header"><div><p class="eyebrow">HORSE PROFILE</p><h2 id="horse-name" tabindex="-1">${escape(h.name)}</h2><p class="horse-meta">${escape(meta)}</p></div><span class="profile-mark" aria-hidden="true">♞</span></div>${h.imported ? '' : `<p class="horse-summary">${escape(h.summary)}</p>`}
       <section class="next-race ${h.imported ? 'imported-next' : ''}" aria-labelledby="next-title"><div class="next-heading"><h3 id="next-title"><span aria-hidden="true">↗</span> 次走の注目条件</h3>${h.featured ? '<span class="watch-label">注目馬</span>' : ''}</div>${h.conditions.length ? `<div class="condition-tags">${h.conditions.map(c => `<span>${escape(c)}</span>`).join('')}</div>` : ''}<p class="checkpoint-body">${escape(h.reason || '次走チェックポイントは未記入です。')}</p>${h.imported ? `<p class="condition-source">${h.reason ? `${h.conditionDate ? `記録日：${escape(h.conditionDate)} · ` : ''}${h.conditionDateKnown ? '日付順で最も新しい、空欄でないチェックポイント' : '日付未確定の記録から表示（原文を保持）'}` : ''}${h.watch ? `<br>次走注目：${escape(h.watch)}` : ''}</p>` : ''}</section>
-      <section class="notes-section" aria-labelledby="notes-title"><div class="section-heading"><h3 id="notes-title">過去のメモ <span>${h.notes.length}</span></h3><label class="sort-label">表示順<select id="sort" aria-label="メモの表示順"><option value="new" ${order === 'new' ? 'selected' : ''}>新しい順</option><option value="old" ${order === 'old' ? 'selected' : ''}>古い順</option></select></label></div><div class="filters" role="group" aria-label="メモの種類">${[...filters].map(([key,label]) => `<button data-filter="${escape(key)}" aria-pressed="${filter === key}" class="filter ${filter === key ? 'active' : ''}">${escape(label)}</button>`).join('')}</div><p class="timeline-caption" id="notes-status" role="status" aria-live="polite"></p><div id="timeline" class="timeline"></div></section>`;
+      <section class="notes-section" aria-labelledby="notes-title">${searchType === 'race' && selectedRace ? `<div class="race-context"><p>${escape(raceLabel(selectedRace))} · 該当メモ ${selectedRace.horses.get(h.id).notes.length}件</p><button type="button" class="secondary-button" data-race-note>該当メモへ</button><small>別レースのメモも、この下で確認できます。</small></div>` : ''}<div class="section-heading"><h3 id="notes-title">過去のメモ <span>${h.notes.length}</span></h3><label class="sort-label">表示順<select id="sort" aria-label="メモの表示順"><option value="new" ${order === 'new' ? 'selected' : ''}>新しい順</option><option value="old" ${order === 'old' ? 'selected' : ''}>古い順</option></select></label></div><div class="filters" role="group" aria-label="メモの種類">${[...filters].map(([key,label]) => `<button data-filter="${escape(key)}" aria-pressed="${filter === key}" class="filter ${filter === key ? 'active' : ''}">${escape(label)}</button>`).join('')}</div><p class="timeline-caption" id="notes-status" role="status" aria-live="polite"></p><div id="timeline" class="timeline"></div></section>`;
     renderNotes();
   }
   function section(label, body, className = '') {
@@ -167,14 +202,14 @@
   }
   function noteContent(n, isImported) {
     if (!isImported) return `<div class="race-row"><h4>${escape(n.race)}</h4>${n.result ? `<span class="result">${escape(n.result)}</span>` : ''}</div><p class="course">${escape(n.course)}</p><h5>${escape(n.title)}</h5><p class="note-body">${escape(n.body)}</p><div class="note-tags">${n.tags.map(t => `<span># ${escape(t)}</span>`).join('')}</div>`;
-    const metadata = [['記録者',n.recorder],['出典チャット',n.source],['備考',n.remarks],['CSVの馬名',n.rawName],...n.extras].filter(([,value]) => value.trim());
+    const metadata = [['レース開催日',n.rawRaceDate || ''],['記録者',n.recorder],['出典チャット',n.source],['備考',n.remarks],['CSVの馬名',n.rawName],...n.extras].filter(([,value]) => value.trim());
     return `${n.race.trim() ? `<div class="race-row"><h4>${escape(n.race)}</h4></div>` : ''}${section('観察・レース内容',n.observation,'observation-view')}${section('当時の評価・仮説',n.hypothesis,'hypothesis-view')}${n.views.map(view => section(view.author,view.body,view.author === '本人の見解' ? 'personal-view' : 'chappy-view')).join('')}${section('次走チェックポイント',n.checkpoint)}${section('次走注目',n.watch)}${metadata.length ? `<details class="record-details"><summary>記録の詳細</summary><dl>${metadata.map(([label,value]) => `<dt>${escape(label)}</dt><dd>${escape(value)}</dd>`).join('')}</dl></details>` : ''}`;
   }
   function renderNotes() {
     const h = horses.find(h => h.id === selectedId);
     const notes = h.notes.filter(n => filter === 'all' || filterKey(n) === filter).sort((a,b) => CSV.compareNotes(a,b,order));
     $('#notes-status').textContent = `${notes.length}件のメモ · ${order === 'new' ? '新しい記録から表示' : '古い記録から表示'}${h.imported && notes.some(n => !n.date) ? ' · 日付未確定は末尾' : ''}`;
-    $('#timeline').innerHTML = notes.length ? notes.map(n => `<article class="note ${n.type === 'before' ? 'before' : n.type === 'after' ? 'after' : 'other'}"><div class="note-top"><span class="type-badge">${escape(typeLabel(n))}</span><span class="note-date">${n.date ? `<time datetime="${escape(n.date)}">${escape(dateLabel(n))}${!h.imported ? ` <span>${escape(n.date.slice(11))}</span>` : ''}</time>` : `<span class="uncertain-date">${escape(dateLabel(n))}</span>`}</span></div>${noteContent(n,h.imported)}</article>`).join('') : '<div class="empty"><h4>この種類のメモはまだありません</h4><p>「すべて」を選ぶと、ほかのメモを確認できます。</p></div>';
+    $('#timeline').innerHTML = notes.length ? notes.map(n => `<article id="memo-${escape(n.id)}" tabindex="-1" class="note ${n.type === 'before' ? 'before' : n.type === 'after' ? 'after' : 'other'} ${searchType === 'race' && selectedRace?.key === raceKey(n) ? 'race-match' : ''}"><div class="note-top"><span class="type-badge">${escape(typeLabel(n))}</span><span class="note-date">${n.date ? `<time datetime="${escape(n.date)}">${escape(dateLabel(n))}${!h.imported ? ` <span>${escape(n.date.slice(11))}</span>` : ''}</time>` : `<span class="uncertain-date">${escape(dateLabel(n))}</span>`}</span></div>${noteContent(n,h.imported)}</article>`).join('') : '<div class="empty"><h4>この種類のメモはまだありません</h4><p>「すべて」を選ぶと、ほかのメモを確認できます。</p></div>';
   }
   function renderSource() {
     exitSearchMode();
@@ -189,6 +224,8 @@
     const updatedLabel = updatedAt && !Number.isNaN(Date.parse(updatedAt)) ? new Date(updatedAt).toLocaleString('ja-JP') : '日時不明';
     $('#data-update-info').textContent = saved ? `保存データの取得元：${sourceLabel()} · 最終更新：${updatedLabel} · ${imported.count}件` : (sampleSelected ? '保存データはまだありません。サンプルの検索を有効にしています。' : '保存データはまだありません。CSV取り込みかGoogle Sheets取得を行ってください。');
     horses = active ? imported.horses : window.HORSES;
+    buildRaceGroups(); selectedRace=null; detailTargetId=null;
+    searchValues.horse='';searchValues.race='';
     selectedId = null; filter = 'all'; search.value = '';
     renderList(); renderDetail();
   }
@@ -224,7 +261,7 @@
       const table = CSV.parse(csvText);
       const mapping = CSV.detect(table.headers);
       pending = {csvText,table,mapping,fileName:file.name};
-      if (CSV.fields.some(([key]) => mapping[key] < 0)) { showMapping(); status('列の対応を確認してください。まだ保存していません。'); }
+      if (CSV.fields.some(([key]) => key !== 'raceDate' && mapping[key] < 0)) { showMapping(); status('列の対応を確認してください。まだ保存していません。'); }
       else commitImport(mapping);
     } catch (error) { status(`取り込めませんでした。${error.message}`,true); pending = null; }
     finally { csvReading = false; fileInput.value = ''; $('#import-button').disabled = false; }
@@ -250,17 +287,51 @@
   });
   list.addEventListener('click', event => {
     if (event.target.closest('#reset-search')) { search.value = ''; selectedId=null; renderList(); search.focus(); return; }
+    if (event.target.closest('[data-race-back]')) {
+      selectedRace=null;selectedId=null;renderList();list.scrollTop=0;
+      list.querySelector('[data-race]')?.focus({preventScroll:true});return;
+    }
+    const raceButton = event.target.closest('[data-race]');
+    if (raceButton) {
+      selectedRace=raceGroups.find(r=>r.key===raceButton.dataset.race);selectedId=null;
+      search.blur();composing=false;renderList();list.scrollTop=0;
+      $('#selected-race-name')?.focus({preventScroll:true});return;
+    }
     const button = event.target.closest('[data-horse]');
     if (!button) return;
     const wasSearchMode=searchMode;
     exitSearchMode(false);
-    selectedId = button.dataset.horse; filter = initialFilter(horses.find(h => h.id === selectedId)); renderList(); renderDetail();
-    if (wasSearchMode || compactSearch.matches) revealSelectedHorse();
+    selectedId = button.dataset.horse;
+    filter = searchType === 'race' ? 'all' : initialFilter(horses.find(h => h.id === selectedId));
+    detailTargetId = searchType === 'race' ? `memo-${[...selectedRace.horses.get(selectedId).notes].sort(CSV.compareNotes)[0].id}` : null;
+    renderList(); renderDetail();
+    if (wasSearchMode || compactSearch.matches || detailTargetId) revealSelectedHorse();
+  });
+  const searchTabs = [...document.querySelectorAll('[data-search-type]')];
+  function switchSearchType(type) {
+    if (searchType === type) return;
+    searchValues[searchType]=search.value;searchType=type;search.value=searchValues[type];
+    selectedId=null;selectedRace=null;detailTargetId=null;pendingDetailScroll=false;
+    searchTabs.forEach(tab=>{const active=tab.dataset.searchType===type;tab.setAttribute('aria-selected',String(active));tab.tabIndex=active?0:-1;});
+    const label = type === 'race' ? 'レース名の一部で検索' : '馬名・よみがなで検索';
+    search.placeholder=label;search.setAttribute('aria-label',label);
+    $('#search-panel').setAttribute('aria-labelledby',`${type}-search-tab`);
+    $('.horse-panel').setAttribute('aria-label',type === 'race' ? 'レース名検索' : '馬名検索');
+    renderedSearchValue=null;renderList();renderDetail();list.scrollTop=0;
+  }
+  searchTabs.forEach((tab,index)=>{
+    tab.addEventListener('click',()=>switchSearchType(tab.dataset.searchType));
+    tab.addEventListener('keydown',event=>{
+      if (!['ArrowLeft','ArrowRight','Home','End'].includes(event.key)) return;
+      event.preventDefault();
+      const next=searchTabs[event.key==='Home'?0:event.key==='End'?searchTabs.length-1:(index+1)%searchTabs.length];
+      switchSearchType(next.dataset.searchType);next.focus({preventScroll:true});
+    });
   });
   function refreshSearch() {
     // Duplicate IME/blur events must not rebuild a card between touch-down and click.
     if (search.value === renderedSearchValue) return;
-    selectedId=null; renderList();
+    selectedId=null;selectedRace=null;detailTargetId=null;pendingDetailScroll=false; renderList();
   }
   // iOS may finalize a conversion or clear a search field through different events.
   for (const event of ['input','compositionend','search','change']) {
@@ -268,6 +339,9 @@
   }
   mobileLayout.addEventListener('change',renderList);
   detail.addEventListener('click', event => {
+    if (event.target.closest('[data-race-note]')) {
+      filter='all';renderDetail();revealSelectedHorse();return;
+    }
     const button = event.target.closest('[data-filter]');
     if (!button) return;
     filter = button.dataset.filter;

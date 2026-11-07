@@ -370,6 +370,7 @@ body.search-mode { position:fixed; top:var(--search-page-top,0px); left:0; width
   background:var(--bg);
 }
 .search-mode .search-controls { flex-shrink:0; }
+.search-mode #search-panel { display:flex; flex-direction:column; flex:1; min-height:0; }
 .search-mode #close-search { flex-shrink:0; }
 .search-mode .horse-list {
   flex:1; min-height:0; margin:10px 0 0; overflow-y:auto;
@@ -478,3 +479,28 @@ body.search-mode { position:fixed; top:var(--search-page-top,0px); left:0; width
   }
 }
 .has-detail footer .text-button:focus-visible { outline-color:#315d30; }
+
+/* ver.2.3: one input, two search methods; existing memo surfaces stay intact. */
+.search-tabs { display:flex; gap:6px; margin:0 0 12px; flex-shrink:0; }
+.search-tabs button { flex:1; min-width:0; min-height:44px; padding:8px 4px; border:1px solid #46523e; border-radius:7px; background:#1b231d; color:#becbbb; font-size:13px; }
+.search-tabs button[aria-selected="true"] { background:#c2df8b; border-color:#c2df8b; color:#17321f; font-weight:700; }
+.race-results { grid-template-columns:1fr; margin-top:20px; }
+.race-card,.race-results .race-horse { width:100%; border:1px solid #c9d2be; border-radius:8px; background:#faf8f2; color:#153824; text-align:left; padding:14px 16px; min-height:66px; overflow-wrap:anywhere; }
+.race-card { display:grid; gap:3px; }
+.race-card strong { font-size:16px; line-height:1.6; }
+.race-card span,.race-card small,.race-results .horse-info small { color:#4e6051; font-size:12px; }
+.race-card:hover,.race-results .race-horse:hover,.race-results .race-horse.selected { background:#edf2df; border-color:#71875a; }
+.race-heading { padding:14px 16px; border-radius:8px; background:#f4f2e8; color:#153824; overflow-wrap:anywhere; }
+.race-heading h3 { margin:10px 0 4px; font-size:16px; line-height:1.7; }
+.race-heading p { margin:0; font-size:13px; color:#4e6051; }
+.race-back { display:block; min-height:44px; padding:4px 0; border:0; background:none; color:#285535; font-size:13px; text-decoration:underline; }
+.race-results .card-arrow { display:block; color:#526843; }
+.race-results .empty { background:#faf8f2; color:#4e6051; border-color:#c9d2be; }
+.race-results .empty h3 { color:#153824; }
+.race-context { padding:14px; margin-bottom:20px; border:1px solid #c9d2be; border-radius:8px; background:#edf2df; overflow-wrap:anywhere; }
+.race-context p { margin:0 0 8px; color:#153824; font-size:14px; }
+.race-context small { display:block; margin-top:8px; color:#4e6051; font-size:12px; }
+.note.race-match { border:2px solid #627e41; }
+.note:focus,#selected-race-name:focus { outline:none; }
+.keyboard-navigation .note:focus,.keyboard-navigation #selected-race-name:focus { outline:2px solid #2e5c34; outline-offset:3px; }
+.search-mode .race-results>* { flex-shrink:0; }
