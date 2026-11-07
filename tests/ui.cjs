@@ -65,7 +65,7 @@ const url=process.env.BASE_URL || 'http://127.0.0.1:8770';
   assert.deepEqual(errors,[]);
   // Simulate nonzero safe-area in the stylesheet; this does not emulate iOS system UI.
   const insetContext=await browser.newContext({viewport:{width:390,height:844},isMobile:true,deviceScaleFactor:2,serviceWorkers:'block'});
-  await insetContext.route('**/style.css?v=2.3',async r=>{const response=await r.fetch();await r.fulfill({response,body:(await response.text()).replaceAll('env(safe-area-inset-top,0px)','47px')});});
+  await insetContext.route('**/style.css?v=2.4',async r=>{const response=await r.fetch();await r.fulfill({response,body:(await response.text()).replaceAll('env(safe-area-inset-top,0px)','47px')});});
   const insetPage=await insetContext.newPage();await insetPage.goto(url);await insetPage.waitForSelector('#search');
   assert.equal((await insetPage.locator('.status-bar-space').boundingBox()).height,47);
   assert.equal(await insetPage.locator('.status-bar-space').evaluate(el=>getComputedStyle(el).backgroundColor),'rgb(0, 0, 0)');

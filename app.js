@@ -1,6 +1,10 @@
 (() => {
   'use strict';
   const CSV = window.HorseCSV;
+  const Attention = window.HorseAttention;
+  let attentionStorage;
+  try { attentionStorage=window.localStorage; } catch { /* Read failures fall back to automatic without touching saved values. */ }
+  const attention = Attention.create({storage:attentionStorage,compareNotes:CSV.compareNotes});
   const STORAGE_KEY = 'horse-notes-data-v2';
   const LEGACY_STORAGE_KEY = 'horse-notes-csv-v1'; // 読み取りだけに使い、ver.1の保存内容は残す。
   const $ = selector => document.querySelector(selector);
@@ -119,6 +123,34 @@
   const normalize = value => value.normalize('NFKC').toLowerCase().replace(/[\u30a1-\u30f6]/g, c => String.fromCharCode(c.charCodeAt(0) - 0x60)).replace(/\s/g, '');
   const escape = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const latest = horse => [...horse.notes].sort(CSV.compareNotes)[0];
+  function attentionLabel(horse,interactive = false) {
+    const state=attention.state(horse);
+    const current=`${horse.name}の注目度：${state.mode === 'auto' ? '自動' : '手動'}・${state.label}`;
+    const next=state.next === 'auto' ? '自動判定' : `手動・${Attention.LEVELS[state.next].label}`;
+    return interactive ? `${current}。押すと${next}に変更` : current;
+  }
+  function silhouette(horse,className,interactive = false) {
+    const state=attention.state(horse), key=escape(Attention.nameKey(horse.name));
+    const attrs=`class="${className}" data-attention-name="${key}" data-attention="${state.color}" aria-label="${escape(attentionLabel(horse,interactive))}"`;
+    const glyph='<span class="horse-silhouette" aria-hidden="true">♞</span>';
+    if (!interactive) return `<span ${attrs} role="img">${glyph}</span>`;
+    return `<div class="profile-attention"><button type="button" ${attrs} data-attention-cycle title="${escape(attentionLabel(horse,true))}" aria-describedby="attention-help">${glyph}</button><small class="attention-mode" aria-hidden="true">${state.mode === 'auto' ? '自動' : '手動'}</small></div>`;
+  }
+  function paintAttention() {
+    const byName=new Map(horses.map(h=>[Attention.nameKey(h.name),h]));
+    document.querySelectorAll('[data-attention-name]').forEach(mark=>{
+      const horse=byName.get(mark.dataset.attentionName);
+      if (!horse) return;
+      const state=attention.state(horse), interactive=mark.hasAttribute('data-attention-cycle');
+      mark.dataset.attention=state.color;
+      mark.setAttribute('aria-label',attentionLabel(horse,interactive));
+      if (interactive) {
+        mark.title=attentionLabel(horse,true);
+        mark.parentElement.querySelector('.attention-mode').textContent=state.mode === 'auto' ? '自動' : '手動';
+      }
+    });
+  }
+
   const dateLabel = note => note.rawDate !== undefined ? note.rawDate || '日付未記入' : note.date.slice(0,10).replaceAll('-', '.');
   const typeLabel = note => note.typeLabel || (note.type === 'before' ? '予想' : 'レース後');
   // 表示上の分類だけをまとめる。CSVの記録種別と保存内容は原文のまま保持する。
@@ -155,7 +187,7 @@
     $('#search-status').textContent = query ? (selectedRace ? `${raceLabel(selectedRace)} · 登録馬${selectedRace.horses.size}頭` : `${matches.length}件のレース`) : '';
     if (!query) {list.innerHTML='';return;}
     if (selectedRace) {
-      list.innerHTML = `<div class="race-heading"><button type="button" class="race-back" data-race-back>‹ レース一覧へ戻る</button><h3 tabindex="-1" id="selected-race-name">${escape(raceLabel(selectedRace))}</h3><p>登録馬 ${selectedRace.horses.size}頭</p></div>` + [...selectedRace.horses.values()].map(({horse:h,notes})=>`<button type="button" class="horse-card race-horse ${selectedId === h.id ? 'selected' : ''}" data-horse="${escape(h.id)}" aria-pressed="${selectedId === h.id}"><span class="horse-info"><strong>${escape(h.name)}</strong><small>該当メモ ${notes.length}件</small></span><span class="card-arrow" aria-hidden="true">›</span></button>`).join('');
+      list.innerHTML = `<div class="race-heading"><button type="button" class="race-back" data-race-back>‹ レース一覧へ戻る</button><h3 tabindex="-1" id="selected-race-name">${escape(raceLabel(selectedRace))}</h3><p>登録馬 ${selectedRace.horses.size}頭</p></div>` + [...selectedRace.horses.values()].map(({horse:h,notes})=>`<button type="button" class="horse-card race-horse ${selectedId === h.id ? 'selected' : ''}" data-horse="${escape(h.id)}" aria-pressed="${selectedId === h.id}">${silhouette(h,'horse-monogram')}<span class="horse-info"><strong>${escape(h.name)}</strong><small>該当メモ ${notes.length}件</small></span><span class="card-arrow" aria-hidden="true">›</span></button>`).join('');
     } else {
       list.innerHTML = matches.length ? matches.map(r=>`<button type="button" class="race-card" data-race="${escape(r.key)}"><strong>${escape(r.name)}</strong><span>${r.date ? `${escape(r.date.slice(0,4))}年 · ${escape(r.date.replaceAll('-','/'))}` : '開催日未登録・不明'}</span><small>登録馬 ${r.horses.size}頭</small></button>`).join('') : '<div class="empty"><h3>レースが見つかりませんでした</h3><p>レース名の一部を変えてお試しください。<br>取得・取り込み済みのメモから検索します。</p><button id="reset-search" class="secondary-button">検索をクリア</button></div>';
     }
@@ -181,7 +213,7 @@
     list.innerHTML = matches.length ? matches.map(h => {
       const note = latest(h);
       const recordInfo = `${h.notes.length}件の記録${note ? ` · ${dateLabel(note)}` : ''}`;
-      return `<button class="horse-card ${selectedId === h.id ? 'selected' : ''}" data-horse="${escape(h.id)}" aria-pressed="${selectedId === h.id}"><span class="horse-monogram" aria-hidden="true">♞</span><span class="horse-info"><span class="profile-eyebrow">HORSE PROFILE</span><strong>${escape(h.name)}</strong><small>${escape(recordInfo)}</small></span><span class="card-arrow" aria-hidden="true">›</span></button>`;
+      return `<button class="horse-card ${selectedId === h.id ? 'selected' : ''}" data-horse="${escape(h.id)}" aria-pressed="${selectedId === h.id}">${silhouette(h,'horse-monogram')}<span class="horse-info"><span class="profile-eyebrow">HORSE PROFILE</span><strong>${escape(h.name)}</strong><small>${escape(recordInfo)}</small></span><span class="card-arrow" aria-hidden="true">›</span></button>`;
     }).join('') : '<div class="empty"><span aria-hidden="true">⌕</span><h3>馬が見つかりませんでした</h3><p>馬名の先頭や、ひらがなでも<br>検索できます。</p><button id="reset-search" class="secondary-button">検索をクリア</button></div>';
     if (queryChanged) list.scrollTop=0;
   }
@@ -191,10 +223,13 @@
     const meta = h.imported ? `${h.notes.length}件の記録 · ${sourceLabel()}` : `${h.sex}${h.age}歳 ／ ${h.coat} ／ ${h.style}`;
     const filters = new Map([['after','レース総括'],['before','予想段階'],['all','すべて']]);
     if (!filters.has(filter)) filter = 'all';
-    detail.innerHTML = `<div class="horse-header"><div><p class="eyebrow">HORSE PROFILE</p><h2 id="horse-name" tabindex="-1">${escape(h.name)}</h2><p class="horse-meta">${escape(meta)}</p></div><span class="profile-mark" aria-hidden="true">♞</span></div>${h.imported ? '' : `<p class="horse-summary">${escape(h.summary)}</p>`}
+    detail.innerHTML = `<div class="horse-header"><div><p class="eyebrow">HORSE PROFILE</p><h2 id="horse-name" tabindex="-1">${escape(h.name)}</h2><p class="horse-meta">${escape(meta)}</p></div>${silhouette(h,'profile-mark',true)}</div><p id="attention-help" class="visually-hidden">馬のシルエットを押すと、自動、青、緑、赤、虹、自動の順に注目度を切り替えます。手動設定はこの端末に保存します。</p><p id="attention-status" class="visually-hidden" role="status" aria-live="polite"></p>${h.imported ? '' : `<p class="horse-summary">${escape(h.summary)}</p>`}
       <section class="next-race ${h.imported ? 'imported-next' : ''}" aria-labelledby="next-title"><div class="next-heading"><h3 id="next-title"><span aria-hidden="true">↗</span> 次走の注目条件</h3>${h.featured ? '<span class="watch-label">注目馬</span>' : ''}</div>${h.conditions.length ? `<div class="condition-tags">${h.conditions.map(c => `<span>${escape(c)}</span>`).join('')}</div>` : ''}<p class="checkpoint-body">${escape(h.reason || '次走チェックポイントは未記入です。')}</p>${h.imported ? `<p class="condition-source">${h.reason ? `${h.conditionDate ? `記録日：${escape(h.conditionDate)} · ` : ''}${h.conditionDateKnown ? '日付順で最も新しい、空欄でないチェックポイント' : '日付未確定の記録から表示（原文を保持）'}` : ''}${h.watch ? `<br>次走注目：${escape(h.watch)}` : ''}</p>` : ''}</section>
       <section class="notes-section" aria-labelledby="notes-title">${searchType === 'race' && selectedRace ? `<div class="race-context"><p>${escape(raceLabel(selectedRace))} · 該当メモ ${selectedRace.horses.get(h.id).notes.length}件</p><button type="button" class="secondary-button" data-race-note>該当メモへ</button><small>別レースのメモも、この下で確認できます。</small></div>` : ''}<div class="section-heading"><h3 id="notes-title">過去のメモ <span>${h.notes.length}</span></h3><label class="sort-label">表示順<select id="sort" aria-label="メモの表示順"><option value="new" ${order === 'new' ? 'selected' : ''}>新しい順</option><option value="old" ${order === 'old' ? 'selected' : ''}>古い順</option></select></label></div><div class="filters" role="group" aria-label="メモの種類">${[...filters].map(([key,label]) => `<button data-filter="${escape(key)}" aria-pressed="${filter === key}" class="filter ${filter === key ? 'active' : ''}">${escape(label)}</button>`).join('')}</div><p class="timeline-caption" id="notes-status" role="status" aria-live="polite"></p><div id="timeline" class="timeline"></div></section>`;
     renderNotes();
+    const attentionStatus=$('#attention-status');
+    attentionStatus.textContent=attention.loadIssue;
+    attentionStatus.classList.toggle('attention-error',Boolean(attention.loadIssue));
   }
   function section(label, body, className = '') {
     const icon = {'observation-view':'▤','hypothesis-view':'▥','personal-view':'✎'}[className];
@@ -339,6 +374,15 @@
   }
   mobileLayout.addEventListener('change',renderList);
   detail.addEventListener('click', event => {
+    if (event.target.closest('[data-attention-cycle]')) {
+      const horse=horses.find(h=>h.id===selectedId);
+      if (!horse) return;
+      const result=attention.cycle(horse), status=$('#attention-status');
+      if (result.ok) paintAttention();
+      status.textContent=result.ok ? attentionLabel(horse) : result.message;
+      status.classList.toggle('attention-error',!result.ok);
+      return;
+    }
     if (event.target.closest('[data-race-note]')) {
       filter='all';renderDetail();revealSelectedHorse();return;
     }

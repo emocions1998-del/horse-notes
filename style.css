@@ -504,3 +504,38 @@ body.search-mode { position:fixed; top:var(--search-page-top,0px); left:0; width
 .note:focus,#selected-race-name:focus { outline:none; }
 .keyboard-navigation .note:focus,.keyboard-navigation #selected-race-name:focus { outline:2px solid #2e5c34; outline-offset:3px; }
 .search-mode .race-results>* { flex-shrink:0; }
+
+/* ver.2.4: keep the original ♞ glyph, font metrics, and monogram/profile placement. */
+[data-attention="blue"] { --horse-attention-color:#287fc1; }
+[data-attention="green"] { --horse-attention-color:#288d55; }
+[data-attention="red"] { --horse-attention-color:#d33f49; }
+[data-attention="rainbow"] { --horse-attention-color:#7954b7; }
+.horse-silhouette { color:var(--horse-attention-color); -webkit-text-fill-color:currentColor; }
+@supports ((background-clip:text) or (-webkit-background-clip:text)) {
+  [data-attention="rainbow"]>.horse-silhouette {
+    background-image:linear-gradient(90deg,#d73949 0%,#d73949 20%,#c96318 30%,#ae8b00 42%,#22834b 55%,#287fc1 70%,#7954b7 85%,#bf3e83 100%);
+    -webkit-background-clip:text; background-clip:text;
+    color:transparent; -webkit-text-fill-color:transparent;
+  }
+}
+.profile-attention { position:relative; flex-shrink:0; }
+.detail button.profile-mark {
+  appearance:none; -webkit-appearance:none; display:block;
+  margin:0; border:0; background:none; border-radius:0;
+  padding:0 8px 0 0; line-height:1; text-align:inherit;
+  position:relative; cursor:pointer;
+}
+.detail button.profile-mark::after { content:""; position:absolute; inset:-4px; }
+.detail button.profile-mark:focus-visible { outline:2px solid #315d30; outline-offset:4px; border-radius:4px; }
+.attention-mode {
+  position:absolute; top:100%; left:50%; transform:translateX(-50%);
+  color:#4e6051; font-size:10px; line-height:1.4; white-space:nowrap;
+  border-bottom:1px dotted #7c8f76;
+}
+#attention-status.attention-error {
+  position:static; width:auto; height:auto; padding:0; margin:16px 0 0;
+  clip-path:none; white-space:normal; color:#9a2929; font-size:12px;
+}
+.race-results .horse-monogram { flex-shrink:0; }
+@media(max-width:760px) { .detail button.profile-mark { padding-right:0; } }
+.race-results .card-arrow { order:3; margin-left:6px; }

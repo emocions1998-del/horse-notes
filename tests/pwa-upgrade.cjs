@@ -1,4 +1,4 @@
-// Real ver.2.2 worker fixture -> ver.2.3 worker lifecycle, on an isolated local origin.
+// Real ver.2.3 worker fixture -> ver.2.4 worker lifecycle, on an isolated local origin.
 const {chromium}=require('playwright');
 const assert=require('node:assert/strict'),http=require('node:http'),fs=require('node:fs'),path=require('node:path');
 const root=path.resolve(__dirname,'..');let legacy=true;
@@ -14,8 +14,8 @@ const server=http.createServer((req,res)=>{
  const u=new URL(req.url,'http://localhost');const name=u.pathname==='/'?'index.html':u.pathname.slice(1),file=path.resolve(root,name);
  if(!file.startsWith(root+path.sep)||!fs.existsSync(file)){res.writeHead(404).end();return;}
  res.setHeader('Cache-Control','no-store');res.setHeader('Content-Type',({'.js':'application/javascript','.css':'text/css','.html':'text/html','.webmanifest':'application/manifest+json','.svg':'image/svg+xml','.png':'image/png'})[path.extname(file)]||'text/plain');
- let content=fs.readFileSync(name==='sw.js'&&legacy?path.join(__dirname,'fixtures/sw-v2.2.js'):file);
- if(name==='index.html'&&legacy)content=Buffer.from(content.toString().replaceAll('2.3','2.2'));
+ let content=fs.readFileSync(name==='sw.js'&&legacy?path.join(__dirname,'fixtures/sw-v2.3.js'):file);
+ if(name==='index.html'&&legacy)content=Buffer.from(content.toString().replaceAll('2.4','2.3'));
  res.end(content);
 });
 (async()=>{
@@ -28,15 +28,16 @@ const server=http.createServer((req,res)=>{
    const t=HorseCSV.parse(csvText),mapping=HorseCSV.detect(t.headers);delete mapping.raceDate;
    const value=JSON.stringify({version:1,csvText,mapping,fileName:'legacy.csv',active:'imported'});
    localStorage.setItem('horse-notes-data-v2',value);localStorage.setItem('horse-notes-google-client-id-v1','synthetic.apps.googleusercontent.com');
+   localStorage.setItem('horse-notes-attention-v1',JSON.stringify({version:1,overrides:{'検証馬':'rainbow'}}));
    await caches.open('unrelated-application');return value;
   });
-  assert(await p.evaluate(async()=>(await caches.keys()).some(k=>k.endsWith('ver2-2-detail'))));
+  assert(await p.evaluate(async()=>(await caches.keys()).some(k=>k.endsWith('ver2-3-race'))));
   legacy=false;
   await p.evaluate(async()=>{const r=await navigator.serviceWorker.getRegistration();await r.update();});
   await waitUntil(p,async()=>Boolean((await navigator.serviceWorker.getRegistration()).waiting));
-  assert(await p.evaluate(async()=>(await caches.keys()).some(k=>k.endsWith('ver2-3-race'))));
+  assert(await p.evaluate(async()=>(await caches.keys()).some(k=>k.endsWith('ver2-4-attention'))));
   // Waiting preserves the open client's offline assets until the old clients close.
-  assert(await p.evaluate(async()=>(await caches.keys()).some(k=>k.endsWith('ver2-2-detail'))));
+  assert(await p.evaluate(async()=>(await caches.keys()).some(k=>k.endsWith('ver2-3-race'))));
   const workers=c.serviceWorkers();
   const newest=workers[workers.length-1];
   const activated=newest.evaluate(()=>new Promise(resolve=>{
@@ -44,16 +45,19 @@ const server=http.createServer((req,res)=>{
   }));
   await p.close();await activated;
   const next=await c.newPage();await next.goto(url);
-  await waitUntil(next,async()=>{const keys=await caches.keys();return keys.some(k=>k.endsWith('ver2-3-race'))&&!keys.some(k=>k.endsWith('ver2-2-detail'));});
+  await waitUntil(next,async()=>{const keys=await caches.keys();return keys.some(k=>k.endsWith('ver2-4-attention'))&&!keys.some(k=>k.endsWith('ver2-3-race'));});
   assert(await next.evaluate(async()=>(await caches.keys()).includes('unrelated-application')));
   assert.equal(await next.evaluate(()=>localStorage.getItem('horse-notes-data-v2')),saved);
   assert.equal(await next.locator('#google-client-id').inputValue(),'synthetic.apps.googleusercontent.com');
   await waitUntil(next,async()=>{const r=await navigator.serviceWorker.getRegistration();return r.active?.state==='activated' && navigator.serviceWorker.controller===r.active && !r.waiting;});
   await c.setOffline(true);await next.reload();
-  assert.match(await next.locator('.local-badge').innerText(),/ver.2.3/);
+  assert.match(await next.locator('.local-badge').innerText(),/ver.2.4/);
   await next.locator('#race-search-tab').click();await next.locator('#search').fill('菊花賞');assert.equal(await next.locator('.race-card').count(),1);assert.match(await next.locator('.race-card').innerText(),/開催日未登録/);
   await next.locator('.race-card').click();await next.locator('.race-horse').click();assert.equal(await next.locator('.race-match').count(),1);
   assert.equal(await next.evaluate(()=>localStorage.getItem('horse-notes-data-v2')),saved);
-  await c.close();console.log('PASS: ver.2.2 worker installs ver.2.3; waiting retains old assets; closing/reopening activates and cleans only own old cache; legacy data/settings unchanged; new release offline race navigation');
+  assert.equal(await next.locator('[data-attention-cycle]').getAttribute('data-attention'),'rainbow');
+  assert.equal(await next.evaluate(()=>localStorage.getItem('horse-notes-attention-v1')),JSON.stringify({version:1,overrides:{'検証馬':'rainbow'}}));
+  assert(await next.evaluate(async()=>{const key=(await caches.keys()).find(k=>k.endsWith('ver2-4-attention'));return !!await (await caches.open(key)).match(new URL('./attention.js?v=2.4',location.href).href)}));
+  await c.close();console.log('PASS: ver.2.3 worker installs ver.2.4; waiting retains old assets; closing/reopening activates and cleans only own old cache; legacy data/settings/attention unchanged; new release offline race navigation');
  }finally{await b.close();}
 })().catch(e=>{console.error(e);process.exitCode=1}).finally(()=>server.close());
