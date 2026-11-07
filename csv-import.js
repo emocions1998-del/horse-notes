@@ -14,7 +14,8 @@
     ['kind', '記録種別', ['記録種別', '種別', 'メモ種別']],
     ['remarks', '備考', ['備考']],
     ['personal', '本人の見解', ['本人の見解']],
-    ['chappy', 'チャッピーの見解', ['チャッピーの見解']]
+    ['chappy', 'チャッピーの見解', ['チャッピーの見解']],
+    ['raceDate', 'レース開催日', ['レース開催日', '開催日']]
   ];
   const headerKey = text => text.normalize('NFKC').replace(/[\s\uFEFF]/g, '');
   function parse(text) {
@@ -77,6 +78,8 @@
     return (order === 'old' ? a.date.localeCompare(b.date) : b.date.localeCompare(a.date)) || (a.row || 0) - (b.row || 0);
   }
   function build(table, mapping) {
+    // ver.2.2以前の保存マッピングには開催日がない。原文・保存設定を変更せず補う。
+    mapping = {...mapping, raceDate:mapping.raceDate ?? detect(table.headers).raceDate};
     for (const [key] of fields) if (!Number.isInteger(mapping[key]) || mapping[key] < -1 || mapping[key] >= table.headers.length) throw new Error('列の対応を選び直してください。');
     if (mapping.name < 0) throw new Error('「馬名」に対応する列を選んでください。');
     const used = Object.values(mapping).filter(i => i >= 0);
@@ -97,7 +100,7 @@
       const extras = record.cells.flatMap((value, i) => value && !used.includes(i) ? [[table.headers[i] || `列${i + 1}`, value]] : []);
       const note = {
         id:`row-${record.line}`, row:record.line, date, rawDate, rawName,
-        ...kindOf(get('kind')), race:get('race'), observation:get('observation'), hypothesis:get('hypothesis'),
+        ...kindOf(get('kind')), race:get('race'), rawRaceDate:get('raceDate'), raceDate:dateKey(get('raceDate')).slice(0,10), observation:get('observation'), hypothesis:get('hypothesis'),
         checkpoint:get('checkpoint'), watch:get('watch'), recorder:get('recorder'), source:get('source'), remarks:get('remarks'),
         views: [{author:'本人の見解', body:get('personal')}, {author:'チャッピーの見解', body:get('chappy')}].filter(v => v.body.trim()),
         tags:[], extras

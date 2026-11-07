@@ -5,13 +5,13 @@
   const validClientId = value => /^[a-zA-Z0-9._-]+\.apps\.googleusercontent\.com$/.test(value);
   // APIの表示値をCSVと同じ経路で検証する。空欄・改行・不完全な日付も保持する。
   function convert(values, CSV) {
-    if (!Array.isArray(values) || values.length < 2 || values.length > 20001 || values.some(row => !Array.isArray(row) || row.length > 13 || row.some(cell => cell !== null && !['string','number','boolean'].includes(typeof cell)))) {
-      throw new Error('13列のデータを確認できませんでした。保存データは変更していません。');
+    if (!Array.isArray(values) || values.length < 2 || values.length > 20001 || values.some(row => !Array.isArray(row) || row.some(cell => cell !== null && !['string','number','boolean'].includes(typeof cell)))) {
+      throw new Error('行単位のデータを確認できませんでした。保存データは変更していません。');
     }
     const csvText = values.map(row => row.map(cell => `"${String(cell ?? '').replaceAll('"','""')}"`).join(',')).join('\r\n');
     if (new TextEncoder().encode(csvText).length > 5 * 1024 * 1024) throw new Error('データが5MBを超えています。保存データは変更していません。');
     const table = CSV.parse(csvText), mapping = CSV.detect(table.headers);
-    if (table.headers.length !== 13 || CSV.fields.some(([key]) => mapping[key] < 0)) throw new Error('シートの1行目に必要な13列の列名がありません。保存データは変更していません。');
+    if (CSV.fields.some(([key]) => key !== 'raceDate' && mapping[key] < 0)) throw new Error('シートの1行目に必要な13列の列名がありません。保存データは変更していません。');
     return {csvText,mapping,result:CSV.build(table,mapping)};
   }
   function create({config,CSV,onData,onState,loadLibrary,fetchData = (...args) => window.fetch(...args),now = () => Date.now()}) {
@@ -60,7 +60,7 @@
           if (response.status===403) throw new Error('読み取り権限を確認してください。使用中のGoogleアカウントに表の閲覧権限があるか、Sheets APIが有効かを確認します。');
           if (response.status===404) throw new Error('対象の表が見つかりません。閲覧権限とスプレッドシートIDを確認してください。');
           if (response.status===429) throw new Error('取得回数の上限に達しました。時間をおいて再試行してください。');
-          if (response.status===400) throw new Error('シート名または範囲を確認してください。対象は「馬メモ一覧」のA〜M列です。');
+          if (response.status===400) throw new Error('シート名または範囲を確認してください。対象は「馬メモ一覧」のA〜N列です。');
           throw new Error('Googleから正常な応答を受け取れませんでした。時間をおいて再試行してください。');
         }
         const payload=await response.json();

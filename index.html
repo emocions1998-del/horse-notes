@@ -7,30 +7,32 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="馬の手帖">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="description" content="馬の手帖 ver.2.2。Google Sheetsの読み取り連携とCSV取り込みで、馬メモを検索・閲覧できます。">
+  <meta name="description" content="馬の手帖 ver.2.3。Google Sheetsの読み取り連携とCSV取り込みで、馬メモを検索・閲覧できます。">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://accounts.google.com/gsi/client; style-src 'self' https://accounts.google.com/gsi/style; frame-src https://accounts.google.com/gsi/; connect-src 'self' https://sheets.googleapis.com https://accounts.google.com/gsi/ https://oauth2.googleapis.com; img-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'">
-  <title>馬の手帖 ver.2.2 — HORSE NOTES</title>
-  <link rel="manifest" href="./manifest.webmanifest?v=2.2">
+  <title>馬の手帖 ver.2.3 — HORSE NOTES</title>
+  <link rel="manifest" href="./manifest.webmanifest?v=2.3">
   <link rel="icon" href="./icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="./icons/icon-192.png">
-  <link rel="stylesheet" href="./style.css?v=2.2">
-  <script defer src="./data.js?v=2.2"></script>
-  <script defer src="./csv-import.js?v=2.2"></script>
-  <script defer src="./google-config.js?v=2.2"></script>
-  <script defer src="./google-sheets.js?v=2.2"></script>
-  <script defer src="./app.js?v=2.2"></script>
+  <link rel="stylesheet" href="./style.css?v=2.3">
+  <script defer src="./data.js?v=2.3"></script>
+  <script defer src="./csv-import.js?v=2.3"></script>
+  <script defer src="./google-config.js?v=2.3"></script>
+  <script defer src="./google-sheets.js?v=2.3"></script>
+  <script defer src="./app.js?v=2.3"></script>
 </head>
 <body>
   <div class="app-header"><div class="status-bar-space" aria-hidden="true"></div>
-  <header class="topbar"><a class="brand" href="./" aria-label="馬の手帖 ホーム"><span class="brand-icon" aria-hidden="true">♞</span><span>馬の手帖<small>HORSE NOTES</small></span></a><div class="header-actions"><span class="local-badge"><i></i> ver.2.2</span><button id="header-update" class="icon-button refresh-button" type="button" aria-label="Google Sheetsの最新データを取得" aria-describedby="header-sync-status"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 4v6h-6M4 20v-6h6M4.5 9a8 8 0 0 1 13-3L20 10M4 14l2.5 4a8 8 0 0 0 13-3"/></svg></button><button id="menu-button" class="icon-button menu-button" type="button" aria-label="管理メニューを開く" aria-haspopup="dialog" aria-controls="management-menu" aria-expanded="false">☰</button></div></header>
+  <header class="topbar"><a class="brand" href="./" aria-label="馬の手帖 ホーム"><span class="brand-icon" aria-hidden="true">♞</span><span>馬の手帖<small>HORSE NOTES</small></span></a><div class="header-actions"><span class="local-badge"><i></i> ver.2.3</span><button id="header-update" class="icon-button refresh-button" type="button" aria-label="Google Sheetsの最新データを取得" aria-describedby="header-sync-status"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 4v6h-6M4 20v-6h6M4.5 9a8 8 0 0 1 13-3L20 10M4 14l2.5 4a8 8 0 0 0 13-3"/></svg></button><button id="menu-button" class="icon-button menu-button" type="button" aria-label="管理メニューを開く" aria-haspopup="dialog" aria-controls="management-menu" aria-expanded="false">☰</button></div></header>
   </div>
   <p id="header-sync-status" class="header-sync-status" role="status" aria-live="polite"></p>
   <main>
     <section class="intro"><p class="eyebrow">YOUR NEXT RACE STARTS HERE</p><h1>馬の記憶を、次の一走へ。</h1><p class="intro-copy">予想の理由も、レース後の気づきも。一頭ずつ、振り返るための手帖。</p></section>
     <div class="workspace">
-      <section class="horse-panel" aria-label="馬名検索"><div class="search-controls"><label class="search-box"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg><input id="search" type="search" enterkeyhint="search" aria-controls="horse-list" aria-expanded="false" placeholder="馬名・よみがなで検索" aria-label="馬名・よみがなで検索" autocomplete="off"></label><button id="close-search" class="secondary-button" type="button" hidden>閉じる</button></div>
+      <section class="horse-panel" aria-label="馬名検索">
+        <div class="search-tabs" role="tablist" aria-label="検索方法"><button type="button" id="horse-search-tab" role="tab" aria-selected="true" aria-controls="search-panel" data-search-type="horse">馬名から探す</button><button type="button" id="race-search-tab" role="tab" aria-selected="false" aria-controls="search-panel" tabindex="-1" data-search-type="race">レース名から探す</button></div>
+        <div id="search-panel" role="tabpanel" aria-labelledby="horse-search-tab"><div class="search-controls"><label class="search-box"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg><input id="search" type="search" enterkeyhint="search" aria-controls="horse-list" aria-expanded="false" placeholder="馬名・よみがなで検索" aria-label="馬名・よみがなで検索" autocomplete="off"></label><button id="close-search" class="secondary-button" type="button" hidden>閉じる</button></div>
         <p id="search-status" class="visually-hidden" role="status" aria-live="polite"></p>
-        <div id="horse-list" class="horse-list"></div>
+        <div id="horse-list" class="horse-list"></div></div>
       </section>
       <section id="detail" class="detail" aria-label="選択した馬のメモ"></section>
     </div>
@@ -62,7 +64,7 @@
       </div>
     </details>
   </dialog>
-  <dialog id="help"><div class="dialog-heading"><h2>馬の手帖の使い方</h2><button id="close-help" class="close-button" aria-label="閉じる">×</button></div><ol><li>「CSVを取り込む」で、パソコンにあるCSVを選択します。標準の13列なら自動で取り込みます。</li><li>「表示データ」でサンプルと取り込んだデータを切り替えられます。</li><li>馬名・よみがなの先頭から1文字以上入力し、検索結果のカードを選ぶと、次走チェックポイントと過去メモが表示されます。検索文字を消すと結果と詳細を非表示に戻します。</li><li>「本人の見解」「チャッピーの見解」はそれぞれの欄で確認できます。</li><li>記録種別で絞り込み、「表示順」で時系列の向きを変えられます。</li></ol><p>「要確認」などの日付もそのまま保存します。日付を判定できないメモは、表示順にかかわらず末尾にCSVの順で並びます。同日時の記録もCSVの順です。</p><p>取り込むたびに、保存済みのCSVデータ全体を置き換えます。サンプルは残ります。元のCSVやGoogleスプレッドシートは変更しません。</p><p>CSVはこの端末のブラウザー内に保存され、外部に送信されません。同じURL・同じ利用環境で開き直してください。端末・ブラウザー・URLが違う場合はCSVを取り込み直します。サイトデータの削除等で消えることがあるため、元CSVを保管してください。</p><p>iPhoneではSafariの共有メニューから「ホーム画面に追加」できます。「ウェブアプリとして開く」があればオンにし、追加したアイコンから起動してCSVを取り込んでください。Googleからの更新は設定エリアの「最新データを取得」で行います。CSVとの結合やスプレッドシートへの書き戻しは行いません。</p></dialog>
+  <dialog id="help"><div class="dialog-heading"><h2>馬の手帖の使い方</h2><button id="close-help" class="close-button" aria-label="閉じる">×</button></div><ol><li>「CSVを取り込む」で、パソコンにあるCSVを選択します。従来の13列と、追加の「レース開催日」列に対応します。</li><li>「表示データ」でサンプルと取り込んだデータを切り替えられます。</li><li>馬名・よみがなの先頭から1文字以上入力し、検索結果のカードを選ぶと、次走チェックポイントと過去メモが表示されます。検索文字を消すと結果と詳細を非表示に戻します。</li><li>「レース名から探す」では部分一致で検索し、開催日別のレース→登録馬→該当メモへ進めます。開催日がない記録は末尾にまとめます。別レースのメモも引き続き確認できます。</li><li>「本人の見解」「チャッピーの見解」はそれぞれの欄で確認できます。</li><li>記録種別で絞り込み、「表示順」で時系列の向きを変えられます。</li></ol><p>「要確認」などの日付もそのまま保存します。日付を判定できないメモは、表示順にかかわらず末尾にCSVの順で並びます。同日時の記録もCSVの順です。</p><p>取り込むたびに、保存済みのCSVデータ全体を置き換えます。サンプルは残ります。元のCSVやGoogleスプレッドシートは変更しません。</p><p>CSVはこの端末のブラウザー内に保存され、外部に送信されません。同じURL・同じ利用環境で開き直してください。端末・ブラウザー・URLが違う場合はCSVを取り込み直します。サイトデータの削除等で消えることがあるため、元CSVを保管してください。</p><p>iPhoneではSafariの共有メニューから「ホーム画面に追加」できます。「ウェブアプリとして開く」があればオンにし、追加したアイコンから起動してCSVを取り込んでください。Googleからの更新は設定エリアの「最新データを取得」で行います。CSVとの結合やスプレッドシートへの書き戻しは行いません。</p></dialog>
   <dialog id="mapping-dialog" aria-labelledby="mapping-title"><div class="dialog-heading"><h2 id="mapping-title">CSVの列を確認</h2><button id="cancel-mapping" class="close-button" aria-label="取り込みをキャンセル">×</button></div><p>列名が標準形式と異なります。「馬名」は必須です。ほかは空欄のままでも取り込めます。対応を選んでから保存してください。</p><p id="mapping-file"></p><div id="mapping-fields" class="mapping-fields"></div><p id="mapping-error" class="import-status error" role="alert"></p><button id="confirm-mapping" class="secondary-button" type="button">この対応で取り込む</button><p>この操作で保存済みのCSVデータ全体を置き換えます。選ばなかった列もメモの「記録の詳細」に残します。</p></dialog>
   <noscript>このアプリを使うにはブラウザーのJavaScriptを有効にしてください。</noscript>
 </body>
